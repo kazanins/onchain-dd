@@ -1,0 +1,260 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Tempo Invoices</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+      :root {
+        --bg: #f6f7fb;
+        --card: #ffffff;
+        --border: #e7e9f2;
+        --text: #12131a;
+        --muted: #5f6675;
+        --accent: #111827;
+        --accent-weak: #dfe3ec;
+        --success: #137a46;
+        --shadow: 0 18px 35px rgba(17, 24, 39, 0.06);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: 'Space Grotesk', ui-sans-serif, system-ui, -apple-system;
+        color: var(--text);
+        background:
+          radial-gradient(1200px 500px at 15% -10%, #eef4ff 0%, transparent 60%),
+          radial-gradient(900px 400px at 90% 0%, #fff0dd 0%, transparent 55%),
+          var(--bg);
+      }
+      .wrap {
+        display: grid;
+        grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr);
+        min-height: 100vh;
+        gap: 18px;
+        padding: 20px;
+      }
+      .pane {
+        padding: 8px 12px 18px;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+        box-shadow: var(--shadow);
+        overflow: auto;
+      }
+      .pane h2 {
+        font-size: 24px;
+        margin: 12px 12px 6px;
+        letter-spacing: 0.2px;
+      }
+      .merchant-header {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: flex-start;
+        gap: 6px;
+        margin: 0 10px;
+        padding: 0 0 6px;
+      }
+      .merchant-header h2 { margin: 12px 0 4px; }
+      .merchant-header-address {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 2px;
+      }
+      .merchant-header-address code { font-size: 12px; }
+      .merchant-header-address .copy-button {
+        padding: 4px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #fff;
+        cursor: pointer;
+      }
+      .phone-shell {
+        max-width: 380px;
+        margin: 8px auto 16px;
+        border-radius: 36px;
+        padding: 12px;
+        background: linear-gradient(180deg, #ffffff 0%, #f3f4f8 100%);
+        border: 1px solid #e3e6ef;
+        box-shadow: 0 30px 50px rgba(17, 24, 39, 0.18);
+        position: relative;
+      }
+      .phone-shell::before {
+        content: '';
+        position: absolute;
+        top: 12px;
+        left: 50%;
+        width: 140px;
+        height: 28px;
+        transform: translateX(-50%);
+        background: #0f1116;
+        border-radius: 18px;
+        box-shadow: inset 0 -2px 0 rgba(255, 255, 255, 0.08);
+      }
+      .phone-screen {
+        background: #f8fafc;
+        border-radius: 28px;
+        padding: 46px 18px 18px;
+        min-height: 640px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        position: relative;
+      }
+      .auth-screen {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      .touchid-image { width: 72px; height: 72px; opacity: 0.85; }
+      .balance-card {
+        border-radius: 20px;
+        padding: 18px 16px;
+        background: #111827;
+        color: #fff;
+        box-shadow: 0 16px 28px rgba(17, 24, 39, 0.25);
+      }
+      .balance-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .balance-amount {
+        font-size: 36px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+      }
+      .balance-token { font-size: 13px; opacity: 0.75; margin-top: 4px; }
+      .balance-address {
+        font-size: 11px;
+        opacity: 0.7;
+        margin-top: 8px;
+        word-break: break-all;
+      }
+      .icon-button {
+        position: static;
+        border-radius: 999px;
+        padding: 8px;
+        border: 1px solid #2a3345;
+        background: #1f2937;
+        color: #ffffff;
+        box-shadow: 0 6px 14px rgba(17, 24, 39, 0.18);
+        cursor: pointer;
+      }
+      .phone-screen .phone-card { border-radius: 18px; border: 1px solid #e3e6ef; background: #fff; padding: 14px; }
+      .invoice-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 12px;
+        border: 1px solid #edf0f6;
+        border-radius: 14px;
+        background: #fbfcff;
+      }
+      .invoice-title { display: flex; gap: 8px; align-items: baseline; font-weight: 600; }
+      .notice {
+        border-radius: 14px;
+        padding: 10px 14px;
+        background: #e9f7ee;
+        color: #146c3a;
+        font-size: 12px;
+        font-weight: 600;
+        border: 1px solid #c8ead5;
+        animation: drop 240ms ease;
+      }
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 16px 16px 16px 18px;
+        margin: 12px 10px;
+        background: var(--card);
+        box-shadow: 0 8px 18px rgba(17, 24, 39, 0.04);
+        animation: rise 360ms ease both;
+      }
+      .step-card { position: relative; padding-left: 56px; }
+      .step-card::before {
+        content: attr(data-step);
+        position: absolute;
+        left: 16px;
+        top: 16px;
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        background: #f1f3f8;
+        color: #7a8498;
+        display: grid;
+        place-items: center;
+        font-weight: 600;
+      }
+      .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+      .field { display: flex; flex-direction: column; gap: 6px; }
+      .label { font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: 0.2px; }
+      input, select {
+        padding: 11px 12px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: #fff;
+        font-family: inherit;
+        width: 100%;
+      }
+      .input-full { width: 100%; }
+      input:focus, select:focus { outline: 2px solid #d8e2ff; border-color: #d8e2ff; }
+      .btn {
+        padding: 10px 16px;
+        border-radius: 12px;
+        border: 1px solid var(--accent);
+        background: white;
+        cursor: pointer;
+        font-weight: 600;
+        transition: transform 120ms ease, box-shadow 120ms ease;
+      }
+      .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(17, 24, 39, 0.12); }
+      .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+      .btn-outline { border: 2px dashed var(--accent); background: #fff; }
+      .btn-ghost { border-color: var(--accent-weak); background: #f7f8fc; color: #2e3440; }
+      button:disabled { opacity: 0.55; cursor: not-allowed; border-style: dashed; }
+      .muted { color: var(--muted); font-size: 12px; }
+      .copy-button { transition: transform 120ms ease, border-color 120ms ease, color 120ms ease; }
+      .copy-button.copied { color: var(--success); border-color: var(--success); animation: pop 220ms ease; }
+      .copy-badge { opacity: 0; transform: translateY(-2px); transition: opacity 160ms ease, transform 160ms ease; font-size: 12px; color: var(--success); }
+      .copy-badge.show { opacity: 1; transform: translateY(0); }
+      .paid { color: var(--success); font-weight: 600; }
+      .unpaid { color: #c26; font-weight: 600; }
+      code { background: #f1f3f8; padding: 3px 7px; border-radius: 8px; }
+      a { color: inherit; }
+      .pane .card:nth-of-type(1) { animation-delay: 20ms; }
+      .pane .card:nth-of-type(2) { animation-delay: 60ms; }
+      .pane .card:nth-of-type(3) { animation-delay: 100ms; }
+      .pane .card:nth-of-type(4) { animation-delay: 140ms; }
+      .pane .card:nth-of-type(5) { animation-delay: 180ms; }
+      .pane .card:nth-of-type(6) { animation-delay: 220ms; }
+      @media (max-width: 900px) {
+        .wrap { grid-template-columns: 1fr; padding: 12px; }
+        .pane { border-radius: 16px; }
+      }
+      @keyframes pop { 0% { transform: scale(1); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
+      @keyframes drop {
+        0% { opacity: 0; transform: translateY(-4px); }
+        100% { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes rise {
+        0% { opacity: 0; transform: translateY(6px); }
+        100% { opacity: 1; transform: translateY(0); }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script src="/assets/bundle.js"></script>
+  </body>
+</html>
