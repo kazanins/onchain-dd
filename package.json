@@ -8,7 +8,7 @@
     "dev:client": "pnpm build:client --watch",
     "build": "pnpm build:client && pnpm build:server",
     "build:client": "esbuild src/client/index.tsx --bundle --sourcemap --outfile=public/assets/bundle.js",
-    "build:server": "tsc -p tsconfig.json"
+    "build:server": "pnpm exec tsc -p tsconfig.json"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.12",
