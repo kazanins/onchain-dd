@@ -29,6 +29,7 @@ export const invoiceRegistryAbi = [
           { name: 'amount', type: 'uint256' },
           { name: 'dueDate', type: 'uint256' },
           { name: 'status', type: 'uint8' },
+          { name: 'paidTxHash', type: 'bytes32' },
         ],
       },
     ],
@@ -51,7 +52,10 @@ export const invoiceRegistryAbi = [
     type: 'function',
     name: 'markPaid',
     stateMutability: 'nonpayable',
-    inputs: [{ name: 'number', type: 'uint256' }],
+    inputs: [
+      { name: 'number', type: 'uint256' },
+      { name: 'txHash', type: 'bytes32' },
+    ],
     outputs: [],
   },
 ] as const

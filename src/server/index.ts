@@ -4,7 +4,7 @@ import express from 'express'
 import cors from 'cors'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { createWalletClient, http, parseUnits, pad, stringToHex } from 'viem'
+import { createWalletClient, http, parseEventLogs, parseUnits, pad, stringToHex } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { tempo } from 'tempo.ts/chains'
 
@@ -80,6 +80,28 @@ const invoiceRegistryAbi = [
   },
   {
     type: 'function',
+    name: 'getInvoice',
+    stateMutability: 'view',
+    inputs: [{ name: 'number', type: 'uint256' }],
+    outputs: [
+      {
+        name: '',
+        type: 'tuple',
+        components: [
+          { name: 'number', type: 'uint256' },
+          { name: 'invoiceId', type: 'bytes32' },
+          { name: 'payee', type: 'address' },
+          { name: 'currency', type: 'address' },
+          { name: 'amount', type: 'uint256' },
+          { name: 'dueDate', type: 'uint256' },
+          { name: 'status', type: 'uint8' },
+          { name: 'paidTxHash', type: 'bytes32' },
+        ],
+      },
+    ],
+  },
+  {
+    type: 'function',
     name: 'createInvoice',
     stateMutability: 'nonpayable',
     inputs: [
@@ -95,10 +117,24 @@ const invoiceRegistryAbi = [
     type: 'function',
     name: 'markPaid',
     stateMutability: 'nonpayable',
-    inputs: [{ name: 'number', type: 'uint256' }],
+    inputs: [
+      { name: 'number', type: 'uint256' },
+      { name: 'txHash', type: 'bytes32' },
+    ],
     outputs: [],
   },
 ] as const
+
+const transferWithMemoEvent = {
+  type: 'event',
+  name: 'TransferWithMemo',
+  inputs: [
+    { name: 'from', type: 'address', indexed: true },
+    { name: 'to', type: 'address', indexed: true },
+    { name: 'value', type: 'uint256' },
+    { name: 'memo', type: 'bytes32', indexed: true },
+  ],
+} as const
 
 app.post('/api/invoices/create', async (req, res) => {
   try {
@@ -141,14 +177,58 @@ app.post('/api/invoices/create', async (req, res) => {
 app.post('/api/invoices/mark-paid', async (req, res) => {
   try {
     const number = req.body?.number as string | undefined
+    const txHash = req.body?.txHash as `0x${string}` | undefined
     if (!number) return res.status(400).json({ error: 'Missing invoice number' })
+    if (!txHash) return res.status(400).json({ error: 'Missing txHash' })
     const invoiceNumber = BigInt(number)
+
+    const invoice = (await client.readContract({
+      address: invoiceRegistryAddress,
+      abi: invoiceRegistryAbi,
+      functionName: 'getInvoice',
+      args: [invoiceNumber],
+    } as never)) as {
+      invoiceId: `0x${string}`
+      payee: `0x${string}`
+      status: number
+      paidTxHash: `0x${string}`
+    }
+    const invoiceId = invoice.invoiceId
+    const payee = invoice.payee
+    const status = Number(invoice.status)
+    if (status !== 0) return res.json({ status: 'already-paid' })
+
+    const receipt = await client.getTransactionReceipt({ hash: txHash })
+    if (receipt.status !== 'success') {
+      return res.status(400).json({ error: 'Transaction not successful' })
+    }
+
+    const logs = parseEventLogs({
+      abi: [transferWithMemoEvent],
+      logs: receipt.logs,
+    })
+
+    const matching = logs.find((log) => {
+      const args = log.args as {
+        to: `0x${string}`
+        memo: `0x${string}`
+      }
+      return (
+        log.address?.toLowerCase() === ALPHA_USD.toLowerCase() &&
+        args.to.toLowerCase() === payee.toLowerCase() &&
+        args.memo.toLowerCase() === invoiceId.toLowerCase()
+      )
+    })
+
+    if (!matching) {
+      return res.status(400).json({ error: 'No matching TransferWithMemo found' })
+    }
 
     const hash = await walletClient.writeContract({
       address: invoiceRegistryAddress,
       abi: invoiceRegistryAbi,
       functionName: 'markPaid',
-      args: [invoiceNumber],
+      args: [invoiceNumber, txHash],
       feeToken: ALPHA_USD,
     } as never)
 

@@ -71,6 +71,7 @@ type OnchainInvoice = {
   amount: bigint
   dueDate: bigint
   status: number
+  paidTxHash: `0x${string}`
 }
 
 function decodeInvoiceId(invoiceId: `0x${string}`) {
@@ -107,6 +108,7 @@ export function App() {
   const [createTxHash, setCreateTxHash] = React.useState<`0x${string}` | null>(null)
   const [isCreatingInvoice, setIsCreatingInvoice] = React.useState(false)
   const [pendingInvoiceNumber, setPendingInvoiceNumber] = React.useState<bigint | null>(null)
+  const [markPaidTxHash, setMarkPaidTxHash] = React.useState<`0x${string}` | null>(null)
 
   const handleCopyId = React.useCallback((id: string) => {
     navigator.clipboard?.writeText(id)
@@ -178,12 +180,14 @@ export function App() {
         fetch('/api/invoices/mark-paid', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ number: pendingInvoiceNumber.toString() }),
+          body: JSON.stringify({
+            number: pendingInvoiceNumber.toString(),
+            txHash: tx,
+          }),
         })
           .then((r) => r.json())
-          .then(() => {
-            invoiceNumbersQuery.refetch()
-            invoicesQuery.refetch()
+          .then((data) => {
+            if (data?.hash) setMarkPaidTxHash(data.hash as `0x${string}`)
           })
           .catch(console.error)
           .finally(() => setPendingInvoiceNumber(null))
@@ -209,9 +213,10 @@ export function App() {
           amount: bigint
           dueDate: bigint
           status: number
+          paidTxHash: `0x${string}`
         }
-        const { number, invoiceId, payee, currency, amount, dueDate, status } = result
-        return [{ number, invoiceId, payee, currency, amount, dueDate, status }]
+        const { number, invoiceId, payee, currency, amount, dueDate, status, paidTxHash } = result
+        return [{ number, invoiceId, payee, currency, amount, dueDate, status, paidTxHash }]
       })
       .sort((a, b) => Number(a.number - b.number))
   }, [invoicesQuery.data])
@@ -223,6 +228,10 @@ export function App() {
   const createReceipt = useWaitForTransactionReceipt({
     hash: createTxHash ?? undefined,
     query: { enabled: Boolean(createTxHash) },
+  })
+  const markPaidReceipt = useWaitForTransactionReceipt({
+    hash: markPaidTxHash ?? undefined,
+    query: { enabled: Boolean(markPaidTxHash) },
   })
 
   React.useEffect(() => {
@@ -237,6 +246,14 @@ export function App() {
       setCreateTxHash(null)
     }
   }, [createReceipt.isSuccess])
+
+  React.useEffect(() => {
+    if (markPaidReceipt.isSuccess) {
+      invoiceNumbersQuery.refetch()
+      invoicesQuery.refetch()
+      setMarkPaidTxHash(null)
+    }
+  }, [invoiceNumbersQuery, invoicesQuery, markPaidReceipt.isSuccess])
 
   const handleGenerateInvoice = React.useCallback(async () => {
     if (!account.address) return
@@ -556,6 +573,18 @@ export function App() {
                 {inv.status === 1 ? 'Paid' : 'Open'}
               </div>
             </div>
+            {inv.status === 1 && inv.paidTxHash !== '0x0000000000000000000000000000000000000000000000000000000000000000' ? (
+              <div className="muted" style={{ marginTop: 8 }}>
+                Receipt:{' '}
+                <a
+                  href={`https://explorer.tempo.xyz/tx/${inv.paidTxHash}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <code>{inv.paidTxHash.slice(0, 10)}…</code>
+                </a>
+              </div>
+            ) : null}
           </div>
         )
         })}

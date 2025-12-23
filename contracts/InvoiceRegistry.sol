@@ -17,6 +17,7 @@ contract InvoiceRegistry {
     uint256 amount;
     uint256 dueDate;
     Status status;
+    bytes32 paidTxHash;
   }
 
   uint256 public nextInvoiceNumber = 1;
@@ -32,7 +33,7 @@ contract InvoiceRegistry {
     uint256 dueDate,
     bytes32 invoiceId
   );
-  event InvoicePaid(uint256 indexed number);
+  event InvoicePaid(uint256 indexed number, bytes32 txHash);
 
   modifier onlyOwner() {
     require(msg.sender == owner, "not owner");
@@ -63,7 +64,8 @@ contract InvoiceRegistry {
       currency: currency,
       amount: amount,
       dueDate: dueDate,
-      status: Status.Open
+      status: Status.Open,
+      paidTxHash: bytes32(0)
     });
     invoicesByPayee[payee].push(number);
 
@@ -79,11 +81,12 @@ contract InvoiceRegistry {
     return invoicesByPayee[payee];
   }
 
-  function markPaid(uint256 number) external onlyOwner {
+  function markPaid(uint256 number, bytes32 txHash) external onlyOwner {
     Invoice storage invoice = invoices[number];
     require(invoice.number != 0, "invoice not found");
     require(invoice.status == Status.Open, "already paid");
     invoice.status = Status.Paid;
-    emit InvoicePaid(number);
+    invoice.paidTxHash = txHash;
+    emit InvoicePaid(number, txHash);
   }
 }

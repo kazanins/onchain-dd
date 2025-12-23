@@ -51595,7 +51595,8 @@ Provided: ${stringify2(envelope)}`);
             { name: "currency", type: "address" },
             { name: "amount", type: "uint256" },
             { name: "dueDate", type: "uint256" },
-            { name: "status", type: "uint8" }
+            { name: "status", type: "uint8" },
+            { name: "paidTxHash", type: "bytes32" }
           ]
         }
       ]
@@ -51618,7 +51619,10 @@ Provided: ${stringify2(envelope)}`);
       type: "function",
       name: "markPaid",
       stateMutability: "nonpayable",
-      inputs: [{ name: "number", type: "uint256" }],
+      inputs: [
+        { name: "number", type: "uint256" },
+        { name: "txHash", type: "bytes32" }
+      ],
       outputs: []
     }
   ];
@@ -51700,6 +51704,7 @@ Provided: ${stringify2(envelope)}`);
     const [createTxHash, setCreateTxHash] = import_react16.default.useState(null);
     const [isCreatingInvoice, setIsCreatingInvoice] = import_react16.default.useState(false);
     const [pendingInvoiceNumber, setPendingInvoiceNumber] = import_react16.default.useState(null);
+    const [markPaidTxHash, setMarkPaidTxHash] = import_react16.default.useState(null);
     const handleCopyId = import_react16.default.useCallback((id) => {
       navigator.clipboard?.writeText(id);
       setCopiedId(id);
@@ -51761,10 +51766,12 @@ Provided: ${stringify2(envelope)}`);
           fetch("/api/invoices/mark-paid", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ number: pendingInvoiceNumber.toString() })
-          }).then((r) => r.json()).then(() => {
-            invoiceNumbersQuery.refetch();
-            invoicesQuery.refetch();
+            body: JSON.stringify({
+              number: pendingInvoiceNumber.toString(),
+              txHash: tx
+            })
+          }).then((r) => r.json()).then((data) => {
+            if (data?.hash) setMarkPaidTxHash(data.hash);
           }).catch(console.error).finally(() => setPendingInvoiceNumber(null));
         }
       }
@@ -51779,8 +51786,8 @@ Provided: ${stringify2(envelope)}`);
       return (invoicesQuery.data ?? []).flatMap((entry) => {
         if (entry.status !== "success" || !entry.result) return [];
         const result = entry.result;
-        const { number, invoiceId, payee, currency, amount, dueDate, status } = result;
-        return [{ number, invoiceId, payee, currency, amount, dueDate, status }];
+        const { number, invoiceId, payee, currency, amount, dueDate, status, paidTxHash } = result;
+        return [{ number, invoiceId, payee, currency, amount, dueDate, status, paidTxHash }];
       }).sort((a, b) => Number(a.number - b.number));
     }, [invoicesQuery.data]);
     const openInvoices = import_react16.default.useMemo(() => {
@@ -51789,6 +51796,10 @@ Provided: ${stringify2(envelope)}`);
     const createReceipt = useWaitForTransactionReceipt({
       hash: createTxHash ?? void 0,
       query: { enabled: Boolean(createTxHash) }
+    });
+    const markPaidReceipt = useWaitForTransactionReceipt({
+      hash: markPaidTxHash ?? void 0,
+      query: { enabled: Boolean(markPaidTxHash) }
     });
     import_react16.default.useEffect(() => {
       if (createReceipt.isSuccess) {
@@ -51801,6 +51812,13 @@ Provided: ${stringify2(envelope)}`);
         setCreateTxHash(null);
       }
     }, [createReceipt.isSuccess]);
+    import_react16.default.useEffect(() => {
+      if (markPaidReceipt.isSuccess) {
+        invoiceNumbersQuery.refetch();
+        invoicesQuery.refetch();
+        setMarkPaidTxHash(null);
+      }
+    }, [invoiceNumbersQuery, invoicesQuery, markPaidReceipt.isSuccess]);
     const handleGenerateInvoice = import_react16.default.useCallback(async () => {
       if (!account.address) return;
       setIsCreatingInvoice(true);
@@ -51998,29 +52016,87 @@ Provided: ${stringify2(envelope)}`);
         onchainInvoices.map((inv) => {
           const invoiceId = decodeInvoiceId(inv.invoiceId);
           const amountLabel = formatInvoiceAmount(inv.amount);
-          return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "card", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "row", style: { justifyContent: "space-between" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "row", style: { gap: 10 }, children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
-                  "Invoice ",
-                  inv.number.toString()
+          return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "card", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "row", style: { justifyContent: "space-between" }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "row", style: { gap: 10 }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
+                    "Invoice ",
+                    inv.number.toString()
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "muted", style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { children: [
+                      "Amount: ",
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("code", { children: [
+                        "$",
+                        amountLabel
+                      ] })
+                    ] }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                      "button",
+                      {
+                        type: "button",
+                        onClick: () => handleCopyId(amountLabel),
+                        title: "Copy invoice amount",
+                        "aria-label": "Copy invoice amount",
+                        className: copiedId === amountLabel ? "copy-button copied" : "copy-button",
+                        style: {
+                          padding: 4,
+                          borderRadius: 6,
+                          border: "1px solid #ddd",
+                          background: "#fff",
+                          cursor: "pointer"
+                        },
+                        children: copiedId === amountLabel ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                          "svg",
+                          {
+                            width: "14",
+                            height: "14",
+                            viewBox: "0 0 24 24",
+                            fill: "none",
+                            stroke: "currentColor",
+                            strokeWidth: "2.5",
+                            strokeLinecap: "round",
+                            strokeLinejoin: "round",
+                            "aria-hidden": "true",
+                            children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M20 6L9 17l-5-5" })
+                          }
+                        ) : /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+                          "svg",
+                          {
+                            width: "14",
+                            height: "14",
+                            viewBox: "0 0 24 24",
+                            fill: "none",
+                            stroke: "currentColor",
+                            strokeWidth: "2",
+                            strokeLinecap: "round",
+                            strokeLinejoin: "round",
+                            "aria-hidden": "true",
+                            children: [
+                              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("rect", { x: "9", y: "9", width: "13", height: "13", rx: "2", ry: "2" }),
+                              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" })
+                            ]
+                          }
+                        )
+                      }
+                    ),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: copiedId === amountLabel ? "copy-badge show" : "copy-badge", children: "Copied" })
+                  ] })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "muted", style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "muted", style: { display: "flex", alignItems: "center", gap: 8 }, children: [
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { children: [
-                    "Amount: ",
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("code", { children: [
-                      "$",
-                      amountLabel
-                    ] })
+                    "ID: ",
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("code", { children: invoiceId })
                   ] }),
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                     "button",
                     {
                       type: "button",
-                      onClick: () => handleCopyId(amountLabel),
-                      title: "Copy invoice amount",
-                      "aria-label": "Copy invoice amount",
-                      className: copiedId === amountLabel ? "copy-button copied" : "copy-button",
+                      onClick: () => handleCopyId(invoiceId),
+                      title: "Copy invoice ID",
+                      "aria-label": "Copy invoice ID",
+                      className: copiedId === invoiceId ? "copy-button copied" : "copy-button",
                       style: {
                         padding: 4,
                         borderRadius: 6,
@@ -52028,7 +52104,7 @@ Provided: ${stringify2(envelope)}`);
                         background: "#fff",
                         cursor: "pointer"
                       },
-                      children: copiedId === amountLabel ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                      children: copiedId === invoiceId ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                         "svg",
                         {
                           width: "14",
@@ -52062,72 +52138,32 @@ Provided: ${stringify2(envelope)}`);
                       )
                     }
                   ),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: copiedId === amountLabel ? "copy-badge show" : "copy-badge", children: "Copied" })
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: copiedId === invoiceId ? "copy-badge show" : "copy-badge", children: "Copied" })
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "muted", style: { marginTop: 6 }, children: [
+                  "Due: ",
+                  formatDueDate(inv.dueDate)
                 ] })
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "muted", style: { display: "flex", alignItems: "center", gap: 8 }, children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { children: [
-                  "ID: ",
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("code", { children: invoiceId })
-                ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-                  "button",
-                  {
-                    type: "button",
-                    onClick: () => handleCopyId(invoiceId),
-                    title: "Copy invoice ID",
-                    "aria-label": "Copy invoice ID",
-                    className: copiedId === invoiceId ? "copy-button copied" : "copy-button",
-                    style: {
-                      padding: 4,
-                      borderRadius: 6,
-                      border: "1px solid #ddd",
-                      background: "#fff",
-                      cursor: "pointer"
-                    },
-                    children: copiedId === invoiceId ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-                      "svg",
-                      {
-                        width: "14",
-                        height: "14",
-                        viewBox: "0 0 24 24",
-                        fill: "none",
-                        stroke: "currentColor",
-                        strokeWidth: "2.5",
-                        strokeLinecap: "round",
-                        strokeLinejoin: "round",
-                        "aria-hidden": "true",
-                        children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M20 6L9 17l-5-5" })
-                      }
-                    ) : /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-                      "svg",
-                      {
-                        width: "14",
-                        height: "14",
-                        viewBox: "0 0 24 24",
-                        fill: "none",
-                        stroke: "currentColor",
-                        strokeWidth: "2",
-                        strokeLinecap: "round",
-                        strokeLinejoin: "round",
-                        "aria-hidden": "true",
-                        children: [
-                          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("rect", { x: "9", y: "9", width: "13", height: "13", rx: "2", ry: "2" }),
-                          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" })
-                        ]
-                      }
-                    )
-                  }
-                ),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: copiedId === invoiceId ? "copy-badge show" : "copy-badge", children: "Copied" })
-              ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "muted", style: { marginTop: 6 }, children: [
-                "Due: ",
-                formatDueDate(inv.dueDate)
-              ] })
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: inv.status === 1 ? "paid" : "unpaid", children: inv.status === 1 ? "Paid" : "Open" })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: inv.status === 1 ? "paid" : "unpaid", children: inv.status === 1 ? "Paid" : "Open" })
-          ] }) }, String(inv.number));
+            inv.status === 1 && inv.paidTxHash !== "0x0000000000000000000000000000000000000000000000000000000000000000" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "muted", style: { marginTop: 8 }, children: [
+              "Receipt:",
+              " ",
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                "a",
+                {
+                  href: `https://explorer.tempo.xyz/tx/${inv.paidTxHash}`,
+                  target: "_blank",
+                  rel: "noreferrer",
+                  children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("code", { children: [
+                    inv.paidTxHash.slice(0, 10),
+                    "\u2026"
+                  ] })
+                }
+              )
+            ] }) : null
+          ] }, String(inv.number));
         })
       ] })
     ] });
