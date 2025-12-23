@@ -222,6 +222,17 @@
       .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
       .btn-outline { border: 2px dashed var(--accent); background: #fff; }
       .btn-ghost { border-color: var(--accent-weak); background: #f7f8fc; color: #2e3440; }
+      .refresh-button {
+        border: 1px solid var(--border);
+        background: #fff;
+        padding: 4px;
+        border-radius: 999px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .refresh-button.spin { animation: spin 0.8s linear infinite; }
       button:disabled { opacity: 0.55; cursor: not-allowed; border-style: dashed; }
       .muted { color: var(--muted); font-size: 12px; }
       .copy-button { transition: transform 120ms ease, border-color 120ms ease, color 120ms ease; }
@@ -243,6 +254,7 @@
         .pane { border-radius: 16px; }
       }
       @keyframes pop { 0% { transform: scale(1); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
       @keyframes drop {
         0% { opacity: 0; transform: translateY(-4px); }
         100% { opacity: 1; transform: translateY(0); }

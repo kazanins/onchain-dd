@@ -11,7 +11,11 @@ function TouchIdIcon() {
   )
 }
 
-function FaucetCard(props: { address?: `0x${string}`; onSuccess?: () => void }) {
+function FaucetCard(props: {
+  address?: `0x${string}`
+  onSuccess?: () => void
+  isRefreshing?: boolean
+}) {
   const [isSending, setIsSending] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [success, setSuccess] = React.useState<string | null>(null)
@@ -59,6 +63,9 @@ function FaucetCard(props: { address?: `0x${string}`; onSuccess?: () => void }) 
       {success ? (
         <div className="muted" style={{ color: 'green', marginTop: 8 }}>{success}</div>
       ) : null}
+      {props.isRefreshing ? (
+        <div className="muted" style={{ color: '#5b6b8f', marginTop: 6 }}>Checking balance…</div>
+      ) : null}
     </div>
   )
 }
@@ -103,10 +110,51 @@ export function App() {
     account: account.address,
     token: alphaUsdToken,
   })
+  const balancePollRef = React.useRef<number | null>(null)
+  const [isBalanceRefreshing, setIsBalanceRefreshing] = React.useState(false)
   const sendPayment = Hooks.token.useTransferSync()
   const lastTxRef = React.useRef<string | null>(null)
   const [createTxHash, setCreateTxHash] = React.useState<`0x${string}` | null>(null)
   const [isCreatingInvoice, setIsCreatingInvoice] = React.useState(false)
+  const [isRefreshingMobile, setIsRefreshingMobile] = React.useState(false)
+  const [isRefreshingMerchant, setIsRefreshingMerchant] = React.useState(false)
+
+  const refreshBalanceAfterFaucet = React.useCallback(() => {
+    const startingBalance = balanceQuery.data ?? 0n
+    const maxAttempts = 20
+    const delayMs = 2000
+    let attempts = 0
+
+    if (balancePollRef.current) {
+      window.clearTimeout(balancePollRef.current)
+      balancePollRef.current = null
+    }
+    setIsBalanceRefreshing(true)
+
+    const poll = async () => {
+      attempts += 1
+      const result = await balanceQuery.refetch()
+      const nextBalance = result.data ?? startingBalance
+      if (nextBalance > startingBalance || attempts >= maxAttempts) {
+        balancePollRef.current = null
+        setIsBalanceRefreshing(false)
+        return
+      }
+      balancePollRef.current = window.setTimeout(poll, delayMs)
+    }
+
+    void poll()
+  }, [balanceQuery])
+
+  React.useEffect(() => {
+    return () => {
+      if (balancePollRef.current) {
+        window.clearTimeout(balancePollRef.current)
+        balancePollRef.current = null
+      }
+      setIsBalanceRefreshing(false)
+    }
+  }, [])
 
   const handleCopyId = React.useCallback((id: string) => {
     navigator.clipboard?.writeText(id)
@@ -169,14 +217,40 @@ export function App() {
     query: { enabled: invoiceContracts.length > 0 },
   })
 
+  const refreshMobileInvoices = React.useCallback(async () => {
+    if (!account.address) return
+    setIsRefreshingMobile(true)
+    try {
+      await Promise.all([invoiceNumbersQuery.refetch(), invoicesQuery.refetch()])
+    } finally {
+      window.setTimeout(() => setIsRefreshingMobile(false), 400)
+    }
+  }, [account.address, invoiceNumbersQuery, invoicesQuery])
+
+  const refreshMerchantInvoices = React.useCallback(async () => {
+    setIsRefreshingMerchant(true)
+    try {
+      await fetch('/api/invoices/refresh-status')
+    } finally {
+      window.setTimeout(() => setIsRefreshingMerchant(false), 400)
+    }
+    await refreshMobileInvoices()
+  }, [refreshMobileInvoices])
+
   React.useEffect(() => {
     const tx = sendPayment.data?.receipt?.transactionHash
     if (tx && tx !== lastTxRef.current) {
       lastTxRef.current = tx
       handlePaymentSuccess(String(tx))
+      window.setTimeout(() => {
+        refreshMerchantInvoices()
+        refreshMobileInvoices()
+      }, 800)
     }
   }, [
     handlePaymentSuccess,
+    refreshMerchantInvoices,
+    refreshMobileInvoices,
     sendPayment.data?.receipt?.transactionHash,
   ])
 
@@ -211,10 +285,12 @@ export function App() {
 
   React.useEffect(() => {
     if (createReceipt.isSuccess) {
-      invoiceNumbersQuery.refetch()
-      invoicesQuery.refetch()
+      window.setTimeout(() => {
+        refreshMerchantInvoices()
+        refreshMobileInvoices()
+      }, 600)
     }
-  }, [createReceipt.isSuccess, invoiceNumbersQuery, invoicesQuery])
+  }, [createReceipt.isSuccess, refreshMerchantInvoices, refreshMobileInvoices])
 
   React.useEffect(() => {
     if (createReceipt.isSuccess) {
@@ -334,10 +410,37 @@ export function App() {
                 <div className="balance-token">AlphaUSD</div>
                 <div className="balance-address">{account.address}</div>
               </div>
-              <FaucetCard address={account.address} onSuccess={() => balanceQuery.refetch()} />
+              <FaucetCard
+                address={account.address}
+                onSuccess={refreshBalanceAfterFaucet}
+                isRefreshing={isBalanceRefreshing}
+              />
               <div className="phone-card">
                 <div className="row" style={{ justifyContent: 'space-between' }}>
-                  <b>Invoices</b>
+                  <div className="row">
+                    <b>Invoices</b>
+                    <button
+                      className={`refresh-button ${isRefreshingMobile ? 'spin' : ''}`}
+                      onClick={refreshMobileInvoices}
+                      aria-label="Refresh invoices"
+                      title="Refresh invoices"
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M21 12a9 9 0 1 1-3-6.7" />
+                        <path d="M21 3v6h-6" />
+                      </svg>
+                    </button>
+                  </div>
                   {sendPayment.isPending ? <span className="muted">Paying…</span> : null}
                 </div>
                 <div style={{ marginTop: 8, display: 'grid', gap: 10 }}>
@@ -409,7 +512,30 @@ export function App() {
 
         <div className="card">
           <div className="row" style={{ justifyContent: 'space-between' }}>
-            <b>Invoices</b>
+            <div className="row">
+              <b>Invoices</b>
+              <button
+                className={`refresh-button ${isRefreshingMerchant ? 'spin' : ''}`}
+                onClick={refreshMerchantInvoices}
+                aria-label="Refresh invoice status"
+                title="Refresh invoice status"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M21 12a9 9 0 1 1-3-6.7" />
+                  <path d="M21 3v6h-6" />
+                </svg>
+              </button>
+            </div>
             <button
               className="btn btn-outline"
               disabled={!account.address || isCreatingInvoice || !invoiceRegistryAddress}

@@ -212,12 +212,14 @@ app.post('/api/invoices/mark-paid', async (req, res) => {
 
     const matching = logs.find((log) => {
       const args = log.args as {
+        from: `0x${string}`
         to: `0x${string}`
         memo: `0x${string}`
       }
       return (
         log.address?.toLowerCase() === ALPHA_USD.toLowerCase() &&
-        args.to.toLowerCase() === payee.toLowerCase() &&
+        args.from.toLowerCase() === payee.toLowerCase() &&
+        args.to.toLowerCase() === merchantAddress.toLowerCase() &&
         args.memo.toLowerCase() === invoiceId.toLowerCase()
       )
     })
@@ -234,6 +236,7 @@ app.post('/api/invoices/mark-paid', async (req, res) => {
       feeToken: ALPHA_USD,
     } as never)
 
+    await client.waitForTransactionReceipt({ hash })
     res.json({ hash })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to mark invoice paid'
@@ -241,7 +244,7 @@ app.post('/api/invoices/mark-paid', async (req, res) => {
   }
 })
 
-app.get('/api/cron/mark-paid', async (_req, res) => {
+app.get('/api/invoices/refresh-status', async (_req, res) => {
   try {
     const latestBlock = await client.getBlockNumber()
     const fromBlock = latestBlock > LOOKBACK_BLOCKS ? latestBlock - LOOKBACK_BLOCKS : 0n
@@ -255,10 +258,12 @@ app.get('/api/cron/mark-paid', async (_req, res) => {
 
     const memoIndex = new Map<string, `0x${string}`>()
     for (const log of logs) {
+      const from = (log.args?.from as `0x${string}` | undefined) ?? null
       const memo = (log.args?.memo as `0x${string}` | undefined) ?? null
       const to = (log.args?.to as `0x${string}` | undefined) ?? null
-      if (!memo || !to) continue
-      memoIndex.set(`${to.toLowerCase()}:${memo.toLowerCase()}`, log.transactionHash)
+      if (!from || !memo || !to) continue
+      if (to.toLowerCase() !== merchantAddress.toLowerCase()) continue
+      memoIndex.set(`${from.toLowerCase()}:${memo.toLowerCase()}`, log.transactionHash)
     }
 
     const nextNumber = (await client.readContract({
@@ -286,13 +291,14 @@ app.get('/api/cron/mark-paid', async (_req, res) => {
       const txHash = memoIndex.get(key)
       if (!txHash) continue
 
-      await walletClient.writeContract({
+      const hash = await walletClient.writeContract({
         address: invoiceRegistryAddress,
         abi: invoiceRegistryAbi,
         functionName: 'markPaid',
         args: [number, txHash],
         feeToken: ALPHA_USD,
       } as never)
+      await client.waitForTransactionReceipt({ hash })
       marked++
     }
 

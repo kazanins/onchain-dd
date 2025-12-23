@@ -51670,7 +51670,8 @@ Provided: ${stringify2(envelope)}`);
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { className: "btn btn-outline", disabled: !props.address || isSending, onClick: requestFunds, children: isSending ? "Requesting\u2026" : "Add test funds" })
       ] }),
       error ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "muted", style: { color: "crimson", marginTop: 8 }, children: error }) : null,
-      success ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "muted", style: { color: "green", marginTop: 8 }, children: success }) : null
+      success ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "muted", style: { color: "green", marginTop: 8 }, children: success }) : null,
+      props.isRefreshing ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "muted", style: { color: "#5b6b8f", marginTop: 6 }, children: "Checking balance\u2026" }) : null
     ] });
   }
   function decodeInvoiceId(invoiceId) {
@@ -51699,10 +51700,46 @@ Provided: ${stringify2(envelope)}`);
       account: account.address,
       token: alphaUsdToken
     });
+    const balancePollRef = import_react16.default.useRef(null);
+    const [isBalanceRefreshing, setIsBalanceRefreshing] = import_react16.default.useState(false);
     const sendPayment = Hooks_exports.token.useTransferSync();
     const lastTxRef = import_react16.default.useRef(null);
     const [createTxHash, setCreateTxHash] = import_react16.default.useState(null);
     const [isCreatingInvoice, setIsCreatingInvoice] = import_react16.default.useState(false);
+    const [isRefreshingMobile, setIsRefreshingMobile] = import_react16.default.useState(false);
+    const [isRefreshingMerchant, setIsRefreshingMerchant] = import_react16.default.useState(false);
+    const refreshBalanceAfterFaucet = import_react16.default.useCallback(() => {
+      const startingBalance = balanceQuery.data ?? 0n;
+      const maxAttempts = 20;
+      const delayMs = 2e3;
+      let attempts = 0;
+      if (balancePollRef.current) {
+        window.clearTimeout(balancePollRef.current);
+        balancePollRef.current = null;
+      }
+      setIsBalanceRefreshing(true);
+      const poll2 = async () => {
+        attempts += 1;
+        const result = await balanceQuery.refetch();
+        const nextBalance = result.data ?? startingBalance;
+        if (nextBalance > startingBalance || attempts >= maxAttempts) {
+          balancePollRef.current = null;
+          setIsBalanceRefreshing(false);
+          return;
+        }
+        balancePollRef.current = window.setTimeout(poll2, delayMs);
+      };
+      void poll2();
+    }, [balanceQuery]);
+    import_react16.default.useEffect(() => {
+      return () => {
+        if (balancePollRef.current) {
+          window.clearTimeout(balancePollRef.current);
+          balancePollRef.current = null;
+        }
+        setIsBalanceRefreshing(false);
+      };
+    }, []);
     const handleCopyId = import_react16.default.useCallback((id) => {
       navigator.clipboard?.writeText(id);
       setCopiedId(id);
@@ -51755,14 +51792,38 @@ Provided: ${stringify2(envelope)}`);
       contracts: invoiceContracts,
       query: { enabled: invoiceContracts.length > 0 }
     });
+    const refreshMobileInvoices = import_react16.default.useCallback(async () => {
+      if (!account.address) return;
+      setIsRefreshingMobile(true);
+      try {
+        await Promise.all([invoiceNumbersQuery.refetch(), invoicesQuery.refetch()]);
+      } finally {
+        window.setTimeout(() => setIsRefreshingMobile(false), 400);
+      }
+    }, [account.address, invoiceNumbersQuery, invoicesQuery]);
+    const refreshMerchantInvoices = import_react16.default.useCallback(async () => {
+      setIsRefreshingMerchant(true);
+      try {
+        await fetch("/api/invoices/refresh-status");
+      } finally {
+        window.setTimeout(() => setIsRefreshingMerchant(false), 400);
+      }
+      await refreshMobileInvoices();
+    }, [refreshMobileInvoices]);
     import_react16.default.useEffect(() => {
       const tx = sendPayment.data?.receipt?.transactionHash;
       if (tx && tx !== lastTxRef.current) {
         lastTxRef.current = tx;
         handlePaymentSuccess(String(tx));
+        window.setTimeout(() => {
+          refreshMerchantInvoices();
+          refreshMobileInvoices();
+        }, 800);
       }
     }, [
       handlePaymentSuccess,
+      refreshMerchantInvoices,
+      refreshMobileInvoices,
       sendPayment.data?.receipt?.transactionHash
     ]);
     const onchainInvoices = import_react16.default.useMemo(() => {
@@ -51782,10 +51843,12 @@ Provided: ${stringify2(envelope)}`);
     });
     import_react16.default.useEffect(() => {
       if (createReceipt.isSuccess) {
-        invoiceNumbersQuery.refetch();
-        invoicesQuery.refetch();
+        window.setTimeout(() => {
+          refreshMerchantInvoices();
+          refreshMobileInvoices();
+        }, 600);
       }
-    }, [createReceipt.isSuccess, invoiceNumbersQuery, invoicesQuery]);
+    }, [createReceipt.isSuccess, refreshMerchantInvoices, refreshMobileInvoices]);
     import_react16.default.useEffect(() => {
       if (createReceipt.isSuccess) {
         setCreateTxHash(null);
@@ -51901,10 +51964,46 @@ Provided: ${stringify2(envelope)}`);
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "balance-token", children: "AlphaUSD" }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "balance-address", children: account.address })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(FaucetCard, { address: account.address, onSuccess: () => balanceQuery.refetch() }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+            FaucetCard,
+            {
+              address: account.address,
+              onSuccess: refreshBalanceAfterFaucet,
+              isRefreshing: isBalanceRefreshing
+            }
+          ),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "phone-card", children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "row", style: { justifyContent: "space-between" }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Invoices" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "row", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Invoices" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                  "button",
+                  {
+                    className: `refresh-button ${isRefreshingMobile ? "spin" : ""}`,
+                    onClick: refreshMobileInvoices,
+                    "aria-label": "Refresh invoices",
+                    title: "Refresh invoices",
+                    children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+                      "svg",
+                      {
+                        width: "14",
+                        height: "14",
+                        viewBox: "0 0 24 24",
+                        fill: "none",
+                        stroke: "currentColor",
+                        strokeWidth: "2",
+                        strokeLinecap: "round",
+                        strokeLinejoin: "round",
+                        "aria-hidden": "true",
+                        children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M21 12a9 9 0 1 1-3-6.7" }),
+                          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M21 3v6h-6" })
+                        ]
+                      }
+                    )
+                  }
+                )
+              ] }),
               sendPayment.isPending ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "muted", children: "Paying\u2026" }) : null
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { marginTop: 8, display: "grid", gap: 10 }, children: openInvoices.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "muted", children: "No open invoices." }) : openInvoices.map((inv) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "invoice-item", children: [
@@ -51974,7 +52073,36 @@ Provided: ${stringify2(envelope)}`);
           ] }) : null
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "card", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "row", style: { justifyContent: "space-between" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Invoices" }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "row", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Invoices" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+              "button",
+              {
+                className: `refresh-button ${isRefreshingMerchant ? "spin" : ""}`,
+                onClick: refreshMerchantInvoices,
+                "aria-label": "Refresh invoice status",
+                title: "Refresh invoice status",
+                children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+                  "svg",
+                  {
+                    width: "14",
+                    height: "14",
+                    viewBox: "0 0 24 24",
+                    fill: "none",
+                    stroke: "currentColor",
+                    strokeWidth: "2",
+                    strokeLinecap: "round",
+                    strokeLinejoin: "round",
+                    "aria-hidden": "true",
+                    children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M21 12a9 9 0 1 1-3-6.7" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M21 3v6h-6" })
+                    ]
+                  }
+                )
+              }
+            )
+          ] }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
             "button",
             {
