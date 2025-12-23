@@ -8250,14 +8250,14 @@
               1,
               badgeFormat + " " + error[0],
               badgeStyle,
-              pad4 + JSCompiler_inline_result + pad4,
+              pad5 + JSCompiler_inline_result + pad5,
               resetStyle
             ) : error.splice(
               0,
               0,
               badgeFormat,
               badgeStyle,
-              pad4 + JSCompiler_inline_result + pad4,
+              pad5 + JSCompiler_inline_result + pad5,
               resetStyle
             );
             error.unshift(console);
@@ -21221,7 +21221,7 @@
           _currentValue: NotPendingTransition,
           _currentValue2: NotPendingTransition,
           _threadCount: 0
-        }, badgeFormat = "%c%s%c", badgeStyle = "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px", resetStyle = "", pad4 = " ", bind = Function.prototype.bind;
+        }, badgeFormat = "%c%s%c", badgeStyle = "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px", resetStyle = "", pad5 = " ", bind = Function.prototype.bind;
         var didWarnAboutNestedUpdates = false;
         var overrideHookState = null, overrideHookStateDeletePath = null, overrideHookStateRenamePath = null, overrideProps = null, overridePropsDeletePath = null, overridePropsRenamePath = null, scheduleUpdate = null, scheduleRetry = null, setErrorHandler = null, setSuspenseHandler = null;
         overrideHookState = function(fiber, id, path, value) {
@@ -22320,10 +22320,20 @@
   function hexToNumber(hex, opts = {}) {
     return Number(hexToBigInt(hex, opts));
   }
+  function hexToString(hex, opts = {}) {
+    let bytes = hexToBytes(hex);
+    if (opts.size) {
+      assertSize(bytes, { size: opts.size });
+      bytes = trim(bytes, { dir: "right" });
+    }
+    return new TextDecoder().decode(bytes);
+  }
   var init_fromHex = __esm({
     "node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/encoding/fromHex.js"() {
       init_encoding();
       init_size();
+      init_trim();
+      init_toBytes();
     }
   });
 
@@ -22609,10 +22619,10 @@
       sum += a.length;
     }
     const res = new Uint8Array(sum);
-    for (let i = 0, pad4 = 0; i < arrays.length; i++) {
+    for (let i = 0, pad5 = 0; i < arrays.length; i++) {
       const a = arrays[i];
-      res.set(a, pad4);
-      pad4 += a.length;
+      res.set(a, pad5);
+      pad5 += a.length;
     }
     return res;
   }
@@ -26310,10 +26320,10 @@ ${prettyStateOverride(stateOverride)}`;
       sum += a.length;
     }
     const res = new Uint8Array(sum);
-    for (let i = 0, pad4 = 0; i < arrays.length; i++) {
+    for (let i = 0, pad5 = 0; i < arrays.length; i++) {
       const a = arrays[i];
-      res.set(a, pad4);
-      pad4 += a.length;
+      res.set(a, pad5);
+      pad5 += a.length;
     }
     return res;
   }
@@ -28843,16 +28853,16 @@ ${prettyStateOverride(stateOverride)}`;
           this.blockLen = this.iHash.blockLen;
           this.outputLen = this.iHash.outputLen;
           const blockLen = this.blockLen;
-          const pad4 = new Uint8Array(blockLen);
-          pad4.set(key.length > blockLen ? hash4.create().update(key).digest() : key);
-          for (let i = 0; i < pad4.length; i++)
-            pad4[i] ^= 54;
-          this.iHash.update(pad4);
+          const pad5 = new Uint8Array(blockLen);
+          pad5.set(key.length > blockLen ? hash4.create().update(key).digest() : key);
+          for (let i = 0; i < pad5.length; i++)
+            pad5[i] ^= 54;
+          this.iHash.update(pad5);
           this.oHash = hash4.create();
-          for (let i = 0; i < pad4.length; i++)
-            pad4[i] ^= 54 ^ 92;
-          this.oHash.update(pad4);
-          clean(pad4);
+          for (let i = 0; i < pad5.length; i++)
+            pad5[i] ^= 54 ^ 92;
+          this.oHash.update(pad5);
+          clean(pad5);
         }
         update(buf) {
           aexists(this);
@@ -31337,14 +31347,14 @@ ${prettyStateOverride(stateOverride)}`;
           return x === y && (0 !== x || 1 / x === 1 / y) || x !== x && y !== y;
         }
         "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-        var React9 = require_react(), shim = require_shim(), objectIs = "function" === typeof Object.is ? Object.is : is, useSyncExternalStore6 = shim.useSyncExternalStore, useRef3 = React9.useRef, useEffect13 = React9.useEffect, useMemo2 = React9.useMemo, useDebugValue = React9.useDebugValue;
+        var React9 = require_react(), shim = require_shim(), objectIs = "function" === typeof Object.is ? Object.is : is, useSyncExternalStore6 = shim.useSyncExternalStore, useRef3 = React9.useRef, useEffect13 = React9.useEffect, useMemo3 = React9.useMemo, useDebugValue = React9.useDebugValue;
         exports.useSyncExternalStoreWithSelector = function(subscribe, getSnapshot, getServerSnapshot, selector, isEqual2) {
           var instRef = useRef3(null);
           if (null === instRef.current) {
             var inst = { hasValue: false, value: null };
             instRef.current = inst;
           } else inst = instRef.current;
-          instRef = useMemo2(
+          instRef = useMemo3(
             function() {
               function memoizedSelector(nextSnapshot) {
                 if (!hasMemo) {
@@ -31408,7 +31418,7 @@ ${prettyStateOverride(stateOverride)}`;
   });
 
   // src/client/index.tsx
-  var import_react16 = __toESM(require_react(), 1);
+  var import_react17 = __toESM(require_react(), 1);
   var import_client = __toESM(require_client(), 1);
 
   // node_modules/.pnpm/wagmi@3.1.0_@tanstack+query-core@5.90.12_@tanstack+react-query@5.90.12_react@19.2.3__@t_665a25229946796fa1aedad50b0b4413/node_modules/wagmi/dist/esm/context.js
@@ -31493,6 +31503,9 @@ ${prettyStateOverride(stateOverride)}`;
       });
     }
   }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/index.js
+  init_call();
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/filters/createFilterRequestScope.js
   function createFilterRequestScope(client, { method }) {
@@ -35056,51 +35069,6 @@ ${prettyStateOverride(stateOverride)}`;
     return secp256k1.verify(signature, from(payload), toBytes3(publicKey), ...hash4 ? [{ prehash: true, lowS: true }] : []);
   }
 
-  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/errors/unit.js
-  init_base();
-  var InvalidDecimalNumberError = class extends BaseError {
-    constructor({ value }) {
-      super(`Number \`${value}\` is not a valid decimal number.`, {
-        name: "InvalidDecimalNumberError"
-      });
-    }
-  };
-
-  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/unit/parseUnits.js
-  function parseUnits(value, decimals) {
-    if (!/^(-?)([0-9]*)\.?([0-9]*)$/.test(value))
-      throw new InvalidDecimalNumberError({ value });
-    let [integer, fraction = "0"] = value.split(".");
-    const negative = integer.startsWith("-");
-    if (negative)
-      integer = integer.slice(1);
-    fraction = fraction.replace(/(0+)$/, "");
-    if (decimals === 0) {
-      if (Math.round(Number(`.${fraction}`)) === 1)
-        integer = `${BigInt(integer) + 1n}`;
-      fraction = "";
-    } else if (fraction.length > decimals) {
-      const [left, unit, right] = [
-        fraction.slice(0, decimals - 1),
-        fraction.slice(decimals - 1, decimals),
-        fraction.slice(decimals)
-      ];
-      const rounded = Math.round(Number(`${unit}.${right}`));
-      if (rounded > 9)
-        fraction = `${BigInt(left) + BigInt(1)}0`.padStart(left.length + 1, "0");
-      else
-        fraction = `${left}${rounded}`;
-      if (fraction.length > decimals) {
-        fraction = fraction.slice(1);
-        integer = `${BigInt(integer) + 1n}`;
-      }
-      fraction = fraction.slice(0, decimals);
-    } else {
-      fraction = fraction.padEnd(decimals, "0");
-    }
-    return BigInt(`${negative ? "-" : ""}${integer}${fraction}`);
-  }
-
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/getTransaction.js
   init_transaction();
   init_toHex();
@@ -36179,6 +36147,17 @@ ${prettyStateOverride(stateOverride)}`;
     return writeContract.internal(client, sendTransactionSync, "sendTransactionSync", parameters);
   }
 
+  // node_modules/.pnpm/@wagmi+core@3.0.0_@tanstack+query-core@5.90.12_@types+react@19.2.7_react@19.2.3_typescr_abcb4ff64c4186c3420513f437736e1f/node_modules/@wagmi/core/dist/esm/utils/getAction.js
+  function getAction2(client, actionFn, name) {
+    const action_implicit = client[actionFn.name];
+    if (typeof action_implicit === "function")
+      return action_implicit;
+    const action_explicit = client[name];
+    if (typeof action_explicit === "function")
+      return action_explicit;
+    return (params) => actionFn(client, params);
+  }
+
   // node_modules/.pnpm/@wagmi+core@3.0.0_@tanstack+query-core@5.90.12_@types+react@19.2.7_react@19.2.3_typescr_abcb4ff64c4186c3420513f437736e1f/node_modules/@wagmi/core/dist/esm/version.js
   var version4 = "3.0.0";
 
@@ -36557,10 +36536,11 @@ ${prettyStateOverride(stateOverride)}`;
   }
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/index.js
+  init_contract();
   init_rpc();
   init_encodeFunctionData();
   init_getAddress();
-  init_pad();
+  init_fromHex();
   init_toHex();
   init_transactionRequest();
   init_formatUnits();
@@ -36792,6 +36772,67 @@ ${prettyStateOverride(stateOverride)}`;
     return connectors;
   }
 
+  // node_modules/.pnpm/@wagmi+core@3.0.0_@tanstack+query-core@5.90.12_@types+react@19.2.7_react@19.2.3_typescr_abcb4ff64c4186c3420513f437736e1f/node_modules/@wagmi/core/dist/esm/actions/multicall.js
+  async function multicall2(config2, parameters) {
+    const { allowFailure = true, chainId, contracts, ...rest } = parameters;
+    const client = config2.getClient({ chainId });
+    const action = getAction2(client, multicall, "multicall");
+    return action({
+      allowFailure,
+      contracts,
+      ...rest
+    });
+  }
+
+  // node_modules/.pnpm/@wagmi+core@3.0.0_@tanstack+query-core@5.90.12_@types+react@19.2.7_react@19.2.3_typescr_abcb4ff64c4186c3420513f437736e1f/node_modules/@wagmi/core/dist/esm/actions/readContract.js
+  function readContract2(config2, parameters) {
+    const { chainId, ...rest } = parameters;
+    const client = config2.getClient({ chainId });
+    const action = getAction2(client, readContract, "readContract");
+    return action(rest);
+  }
+
+  // node_modules/.pnpm/@wagmi+core@3.0.0_@tanstack+query-core@5.90.12_@types+react@19.2.7_react@19.2.3_typescr_abcb4ff64c4186c3420513f437736e1f/node_modules/@wagmi/core/dist/esm/actions/readContracts.js
+  async function readContracts(config2, parameters) {
+    const { allowFailure = true, blockNumber, blockTag, ...rest } = parameters;
+    const contracts = parameters.contracts;
+    try {
+      const contractsByChainId = {};
+      for (const [index3, contract] of contracts.entries()) {
+        const chainId = contract.chainId ?? config2.state.chainId;
+        if (!contractsByChainId[chainId])
+          contractsByChainId[chainId] = [];
+        contractsByChainId[chainId]?.push({ contract, index: index3 });
+      }
+      const promises = () => Object.entries(contractsByChainId).map(([chainId, contracts2]) => multicall2(config2, {
+        ...rest,
+        allowFailure,
+        blockNumber,
+        blockTag,
+        chainId: Number.parseInt(chainId, 10),
+        contracts: contracts2.map(({ contract }) => contract)
+      }));
+      const multicallResults = (await Promise.all(promises())).flat();
+      const resultIndexes = Object.values(contractsByChainId).flatMap((contracts2) => contracts2.map(({ index: index3 }) => index3));
+      return multicallResults.reduce((results, result, index3) => {
+        if (results)
+          results[resultIndexes[index3]] = result;
+        return results;
+      }, []);
+    } catch (error) {
+      if (error instanceof ContractFunctionExecutionError)
+        throw error;
+      const promises = () => contracts.map((contract) => readContract2(config2, { ...contract, blockNumber, blockTag }));
+      if (allowFailure)
+        return (await Promise.allSettled(promises())).map((result) => {
+          if (result.status === "fulfilled")
+            return { result: result.value, status: "success" };
+          return { error: result.reason, result: void 0, status: "failure" };
+        });
+      return await Promise.all(promises());
+    }
+  }
+
   // node_modules/.pnpm/@wagmi+core@3.0.0_@tanstack+query-core@5.90.12_@types+react@19.2.7_react@19.2.3_typescr_abcb4ff64c4186c3420513f437736e1f/node_modules/@wagmi/core/dist/esm/actions/reconnect.js
   var isReconnecting = false;
   async function reconnect(config2, parameters = {}) {
@@ -36890,6 +36931,35 @@ ${prettyStateOverride(stateOverride)}`;
       });
     }
   };
+
+  // node_modules/.pnpm/@wagmi+core@3.0.0_@tanstack+query-core@5.90.12_@types+react@19.2.7_react@19.2.3_typescr_abcb4ff64c4186c3420513f437736e1f/node_modules/@wagmi/core/dist/esm/actions/waitForTransactionReceipt.js
+  async function waitForTransactionReceipt2(config2, parameters) {
+    const { chainId, timeout = 0, ...rest } = parameters;
+    const client = config2.getClient({ chainId });
+    const action = getAction2(client, waitForTransactionReceipt, "waitForTransactionReceipt");
+    const receipt = await action({ ...rest, timeout });
+    if (receipt.status === "reverted") {
+      const action_getTransaction = getAction2(client, getTransaction, "getTransaction");
+      const { from: account, ...txn } = await action_getTransaction({
+        hash: receipt.transactionHash
+      });
+      const action_call = getAction2(client, call, "call");
+      const code = await action_call({
+        ...txn,
+        account,
+        data: txn.input,
+        gasPrice: txn.type !== "eip1559" ? txn.gasPrice : void 0,
+        maxFeePerGas: txn.type === "eip1559" ? txn.maxFeePerGas : void 0,
+        maxPriorityFeePerGas: txn.type === "eip1559" ? txn.maxPriorityFeePerGas : void 0
+      });
+      const reason = code?.data ? hexToString(`0x${code.data.substring(138)}`) : "unknown reason";
+      throw new Error(reason);
+    }
+    return {
+      ...receipt,
+      chainId: client.chain.id
+    };
+  }
 
   // node_modules/.pnpm/@wagmi+core@3.0.0_@tanstack+query-core@5.90.12_@types+react@19.2.7_react@19.2.3_typescr_abcb4ff64c4186c3420513f437736e1f/node_modules/@wagmi/core/dist/esm/actions/watchChainId.js
   function watchChainId(config2, parameters) {
@@ -40857,6 +40927,9 @@ ${prettyStateOverride(stateOverride)}`;
   };
 
   // node_modules/.pnpm/@wagmi+core@3.0.0_@tanstack+query-core@5.90.12_@types+react@19.2.7_react@19.2.3_typescr_abcb4ff64c4186c3420513f437736e1f/node_modules/@wagmi/core/dist/esm/query/utils.js
+  function structuralSharing(oldData, newData) {
+    return replaceEqualDeep(oldData, newData);
+  }
   function hashFn(queryKey) {
     return JSON.stringify(queryKey, (_, value) => {
       if (isPlainObject2(value))
@@ -40886,6 +40959,57 @@ ${prettyStateOverride(stateOverride)}`;
   function hasObjectPrototype2(o) {
     return Object.prototype.toString.call(o) === "[object Object]";
   }
+  function filterQueryOptions(options) {
+    const {
+      // import('@tanstack/query-core').QueryOptions
+      // biome-ignore lint/correctness/noUnusedVariables: tossing
+      _defaulted,
+      behavior,
+      gcTime,
+      initialData,
+      initialDataUpdatedAt,
+      maxPages,
+      meta,
+      networkMode,
+      queryFn,
+      queryHash,
+      queryKey,
+      queryKeyHashFn,
+      retry,
+      retryDelay,
+      structuralSharing: structuralSharing2,
+      // import('@tanstack/query-core').InfiniteQueryObserverOptions
+      // biome-ignore lint/correctness/noUnusedVariables: tossing
+      getPreviousPageParam: getPreviousPageParam2,
+      getNextPageParam: getNextPageParam2,
+      initialPageParam,
+      // import('@tanstack/react-query').UseQueryOptions
+      // biome-ignore lint/correctness/noUnusedVariables: tossing
+      _optimisticResults,
+      enabled,
+      notifyOnChangeProps,
+      placeholderData,
+      refetchInterval,
+      refetchIntervalInBackground,
+      refetchOnMount,
+      refetchOnReconnect,
+      refetchOnWindowFocus,
+      retryOnMount,
+      select,
+      staleTime,
+      suspense,
+      throwOnError,
+      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      // wagmi
+      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      // biome-ignore lint/correctness/noUnusedVariables: tossing
+      config: config2,
+      connector,
+      query,
+      ...rest
+    } = options;
+    return rest;
+  }
 
   // node_modules/.pnpm/@wagmi+core@3.0.0_@tanstack+query-core@5.90.12_@types+react@19.2.7_react@19.2.3_typescr_abcb4ff64c4186c3420513f437736e1f/node_modules/@wagmi/core/dist/esm/query/connect.js
   function connectMutationOptions(config2) {
@@ -40905,6 +41029,95 @@ ${prettyStateOverride(stateOverride)}`;
       },
       mutationKey: ["disconnect"]
     };
+  }
+
+  // node_modules/.pnpm/@wagmi+core@3.0.0_@tanstack+query-core@5.90.12_@types+react@19.2.7_react@19.2.3_typescr_abcb4ff64c4186c3420513f437736e1f/node_modules/@wagmi/core/dist/esm/query/readContract.js
+  function readContractQueryOptions(config2, options = {}) {
+    return {
+      // TODO: Support `signal` once Viem actions allow passthrough
+      // https://tkdodo.eu/blog/why-you-want-react-query#bonus-cancellation
+      async queryFn({ queryKey }) {
+        const abi = options.abi;
+        if (!abi)
+          throw new Error("abi is required");
+        const { functionName, scopeKey: _, ...parameters } = queryKey[1];
+        const addressOrCodeParams = (() => {
+          const params = queryKey[1];
+          if (params.address)
+            return { address: params.address };
+          if (params.code)
+            return { code: params.code };
+          throw new Error("address or code is required");
+        })();
+        if (!functionName)
+          throw new Error("functionName is required");
+        return readContract2(config2, {
+          abi,
+          functionName,
+          args: parameters.args,
+          ...addressOrCodeParams,
+          ...parameters
+        });
+      },
+      queryKey: readContractQueryKey(options)
+    };
+  }
+  function readContractQueryKey(options = {}) {
+    const { abi: _, ...rest } = options;
+    return ["readContract", filterQueryOptions(rest)];
+  }
+
+  // node_modules/.pnpm/@wagmi+core@3.0.0_@tanstack+query-core@5.90.12_@types+react@19.2.7_react@19.2.3_typescr_abcb4ff64c4186c3420513f437736e1f/node_modules/@wagmi/core/dist/esm/query/readContracts.js
+  function readContractsQueryOptions(config2, options = {}) {
+    return {
+      async queryFn({ queryKey }) {
+        const contracts = [];
+        const length = queryKey[1].contracts.length;
+        for (let i = 0; i < length; i++) {
+          const contract = queryKey[1].contracts[i];
+          const abi = (options.contracts?.[i]).abi;
+          contracts.push({ ...contract, abi });
+        }
+        const { scopeKey: _, ...parameters } = queryKey[1];
+        return readContracts(config2, {
+          ...parameters,
+          contracts
+        });
+      },
+      queryKey: readContractsQueryKey(options)
+    };
+  }
+  function readContractsQueryKey(options = {}) {
+    const contracts = [];
+    for (const contract of options.contracts ?? []) {
+      const { abi: _, ...rest } = contract;
+      contracts.push({ ...rest, chainId: rest.chainId ?? options.chainId });
+    }
+    return [
+      "readContracts",
+      filterQueryOptions({ ...options, contracts })
+    ];
+  }
+
+  // node_modules/.pnpm/@wagmi+core@3.0.0_@tanstack+query-core@5.90.12_@types+react@19.2.7_react@19.2.3_typescr_abcb4ff64c4186c3420513f437736e1f/node_modules/@wagmi/core/dist/esm/query/waitForTransactionReceipt.js
+  function waitForTransactionReceiptQueryOptions(config2, options = {}) {
+    return {
+      async queryFn({ queryKey }) {
+        const { hash: hash4, ...parameters } = queryKey[1];
+        if (!hash4)
+          throw new Error("hash is required");
+        return waitForTransactionReceipt2(config2, {
+          ...parameters,
+          onReplaced: options.onReplaced,
+          hash: hash4
+        });
+      },
+      queryKey: waitForTransactionReceiptQueryKey(options)
+    };
+  }
+  function waitForTransactionReceiptQueryKey(options = {}) {
+    const { onReplaced: _, ...rest } = options;
+    return ["waitForTransactionReceipt", filterQueryOptions(rest)];
   }
 
   // node_modules/.pnpm/@tanstack+react-query@5.90.12_react@19.2.3/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js
@@ -41257,6 +41470,72 @@ ${prettyStateOverride(stateOverride)}`;
       disconnect: mutation.mutate,
       disconnectAsync: mutation.mutateAsync
     };
+  }
+
+  // node_modules/.pnpm/wagmi@3.1.0_@tanstack+query-core@5.90.12_@tanstack+react-query@5.90.12_react@19.2.3__@t_665a25229946796fa1aedad50b0b4413/node_modules/wagmi/dist/esm/hooks/useReadContract.js
+  function useReadContract(parameters = {}) {
+    const { abi, address, functionName, query = {} } = parameters;
+    const code = parameters.code;
+    const config2 = useConfig(parameters);
+    const chainId = useChainId({ config: config2 });
+    const options = readContractQueryOptions(config2, { ...parameters, chainId: parameters.chainId ?? chainId });
+    const enabled = Boolean((address || code) && abi && functionName && (query.enabled ?? true));
+    return useQuery2({
+      ...query,
+      ...options,
+      enabled,
+      structuralSharing: query.structuralSharing ?? structuralSharing
+    });
+  }
+
+  // node_modules/.pnpm/wagmi@3.1.0_@tanstack+query-core@5.90.12_@tanstack+react-query@5.90.12_react@19.2.3__@t_665a25229946796fa1aedad50b0b4413/node_modules/wagmi/dist/esm/hooks/useReadContracts.js
+  var import_react9 = __toESM(require_react(), 1);
+  function useReadContracts(parameters = {}) {
+    const { contracts = [], query = {} } = parameters;
+    const config2 = useConfig(parameters);
+    const chainId = useChainId({ config: config2 });
+    const contractsChainId = (0, import_react9.useMemo)(() => {
+      const firstChainId = contracts[0]?.chainId;
+      if (contracts.every((contract) => contract.chainId === firstChainId))
+        return firstChainId;
+      return void 0;
+    }, [contracts]);
+    const options = readContractsQueryOptions(config2, { ...parameters, chainId: contractsChainId ?? chainId });
+    const enabled = (0, import_react9.useMemo)(() => {
+      let isContractsValid = false;
+      for (const contract of contracts) {
+        const { abi, address, functionName } = contract;
+        if (!abi || !address || !functionName) {
+          isContractsValid = false;
+          break;
+        }
+        isContractsValid = true;
+      }
+      return Boolean(isContractsValid && (query.enabled ?? true));
+    }, [contracts, query.enabled]);
+    return useQuery2({
+      ...options,
+      ...query,
+      enabled,
+      structuralSharing: query.structuralSharing ?? structuralSharing
+    });
+  }
+
+  // node_modules/.pnpm/wagmi@3.1.0_@tanstack+query-core@5.90.12_@tanstack+react-query@5.90.12_react@19.2.3__@t_665a25229946796fa1aedad50b0b4413/node_modules/wagmi/dist/esm/hooks/useWaitForTransactionReceipt.js
+  function useWaitForTransactionReceipt(parameters = {}) {
+    const { hash: hash4, query = {} } = parameters;
+    const config2 = useConfig(parameters);
+    const chainId = useChainId({ config: config2 });
+    const options = waitForTransactionReceiptQueryOptions(config2, {
+      ...parameters,
+      chainId: parameters.chainId ?? chainId
+    });
+    const enabled = Boolean(hash4 && (query.enabled ?? true));
+    return useQuery2({
+      ...query,
+      ...options,
+      enabled
+    });
   }
 
   // node_modules/.pnpm/tempo.ts@0.11.1_@remix-run+headers@0.17.2_@remix-run+route-pattern@0.15.3_@remix-run+se_1cd6130ea8fff18f43cb1ad22b1ec2f0/node_modules/tempo.ts/dist/viem/Chain.js
@@ -49601,7 +49880,7 @@ Provided: ${stringify2(envelope)}`);
     useWatchMint: () => useWatchMint,
     useWatchRebalanceSwap: () => useWatchRebalanceSwap
   });
-  var import_react9 = __toESM(require_react(), 1);
+  var import_react10 = __toESM(require_react(), 1);
   function usePool(parameters) {
     const { userToken, validatorToken, query = {} } = parameters;
     const config2 = useConfig(parameters);
@@ -49697,7 +49976,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react9.useEffect)(() => {
+    (0, import_react10.useEffect)(() => {
       if (!enabled)
         return;
       if (!onRebalanceSwap)
@@ -49714,7 +49993,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react9.useEffect)(() => {
+    (0, import_react10.useEffect)(() => {
       if (!enabled)
         return;
       if (!onFeeSwap)
@@ -49731,7 +50010,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react9.useEffect)(() => {
+    (0, import_react10.useEffect)(() => {
       if (!enabled)
         return;
       if (!onMint)
@@ -49748,7 +50027,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react9.useEffect)(() => {
+    (0, import_react10.useEffect)(() => {
       if (!enabled)
         return;
       if (!onBurn)
@@ -49789,7 +50068,7 @@ Provided: ${stringify2(envelope)}`);
     useWithdraw: () => useWithdraw,
     useWithdrawSync: () => useWithdrawSync
   });
-  var import_react10 = __toESM(require_react(), 1);
+  var import_react11 = __toESM(require_react(), 1);
   function useBuy(parameters = {}) {
     const { mutation } = parameters;
     const config2 = useConfig(parameters);
@@ -50021,7 +50300,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react10.useEffect)(() => {
+    (0, import_react11.useEffect)(() => {
       if (!enabled)
         return;
       if (!onFlipOrderPlaced)
@@ -50038,7 +50317,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react10.useEffect)(() => {
+    (0, import_react11.useEffect)(() => {
       if (!enabled)
         return;
       if (!onOrderCancelled)
@@ -50055,7 +50334,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react10.useEffect)(() => {
+    (0, import_react11.useEffect)(() => {
       if (!enabled)
         return;
       if (!onOrderFilled)
@@ -50072,7 +50351,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react10.useEffect)(() => {
+    (0, import_react11.useEffect)(() => {
       if (!enabled)
         return;
       if (!onOrderPlaced)
@@ -50164,7 +50443,7 @@ Provided: ${stringify2(envelope)}`);
     useWatchActiveKeyCountChanged: () => useWatchActiveKeyCountChanged,
     useWatchNonceIncremented: () => useWatchNonceIncremented
   });
-  var import_react11 = __toESM(require_react(), 1);
+  var import_react12 = __toESM(require_react(), 1);
   function useNonce(parameters = {}) {
     const { account, nonceKey, query = {} } = parameters;
     const config2 = useConfig(parameters);
@@ -50194,7 +50473,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react11.useEffect)(() => {
+    (0, import_react12.useEffect)(() => {
       if (!enabled)
         return;
       if (!onNonceIncremented)
@@ -50211,7 +50490,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react11.useEffect)(() => {
+    (0, import_react12.useEffect)(() => {
       if (!enabled)
         return;
       if (!onActiveKeyCountChanged)
@@ -50242,7 +50521,7 @@ Provided: ${stringify2(envelope)}`);
     useWatchCreate: () => useWatchCreate,
     useWatchWhitelistUpdated: () => useWatchWhitelistUpdated
   });
-  var import_react12 = __toESM(require_react(), 1);
+  var import_react13 = __toESM(require_react(), 1);
   function useCreate(parameters = {}) {
     const { mutation } = parameters;
     const config2 = useConfig(parameters);
@@ -50360,7 +50639,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react12.useEffect)(() => {
+    (0, import_react13.useEffect)(() => {
       if (!enabled)
         return;
       if (!onPolicyCreated)
@@ -50377,7 +50656,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react12.useEffect)(() => {
+    (0, import_react13.useEffect)(() => {
       if (!enabled)
         return;
       if (!onAdminUpdated)
@@ -50394,7 +50673,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react12.useEffect)(() => {
+    (0, import_react13.useEffect)(() => {
       if (!enabled)
         return;
       if (!onWhitelistUpdated)
@@ -50411,7 +50690,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react12.useEffect)(() => {
+    (0, import_react13.useEffect)(() => {
       if (!enabled)
         return;
       if (!onBlacklistUpdated)
@@ -50438,7 +50717,7 @@ Provided: ${stringify2(envelope)}`);
     useWatchRewardRecipientSet: () => useWatchRewardRecipientSet,
     useWatchRewardScheduled: () => useWatchRewardScheduled
   });
-  var import_react13 = __toESM(require_react(), 1);
+  var import_react14 = __toESM(require_react(), 1);
   function useClaim(parameters = {}) {
     const { mutation } = parameters;
     const config2 = useConfig(parameters);
@@ -50534,7 +50813,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react13.useEffect)(() => {
+    (0, import_react14.useEffect)(() => {
       if (!enabled)
         return;
       if (!onRewardScheduled)
@@ -50554,7 +50833,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react13.useEffect)(() => {
+    (0, import_react14.useEffect)(() => {
       if (!enabled)
         return;
       if (!onRewardRecipientSet)
@@ -50619,7 +50898,7 @@ Provided: ${stringify2(envelope)}`);
     useWatchTransfer: () => useWatchTransfer,
     useWatchUpdateQuoteToken: () => useWatchUpdateQuoteToken
   });
-  var import_react14 = __toESM(require_react(), 1);
+  var import_react15 = __toESM(require_react(), 1);
   function useApprove(parameters = {}) {
     const { mutation } = parameters;
     const config2 = useConfig(parameters);
@@ -51037,7 +51316,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react14.useEffect)(() => {
+    (0, import_react15.useEffect)(() => {
       if (!enabled)
         return;
       if (!onRoleAdminUpdated)
@@ -51057,7 +51336,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react14.useEffect)(() => {
+    (0, import_react15.useEffect)(() => {
       if (!enabled)
         return;
       if (!onApproval)
@@ -51077,7 +51356,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react14.useEffect)(() => {
+    (0, import_react15.useEffect)(() => {
       if (!enabled)
         return;
       if (!onBurn)
@@ -51097,7 +51376,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react14.useEffect)(() => {
+    (0, import_react15.useEffect)(() => {
       if (!enabled)
         return;
       if (!onTokenCreated)
@@ -51114,7 +51393,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react14.useEffect)(() => {
+    (0, import_react15.useEffect)(() => {
       if (!enabled)
         return;
       if (!onMint)
@@ -51134,7 +51413,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react14.useEffect)(() => {
+    (0, import_react15.useEffect)(() => {
       if (!enabled)
         return;
       if (!onRoleUpdated)
@@ -51154,7 +51433,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react14.useEffect)(() => {
+    (0, import_react15.useEffect)(() => {
       if (!enabled)
         return;
       if (!onTransfer)
@@ -51174,7 +51453,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react14.useEffect)(() => {
+    (0, import_react15.useEffect)(() => {
       if (!enabled)
         return;
       if (!onUpdateQuoteToken)
@@ -51276,7 +51555,7 @@ Provided: ${stringify2(envelope)}`);
   });
 
   // src/client/App.tsx
-  var import_react15 = __toESM(require_react(), 1);
+  var import_react16 = __toESM(require_react(), 1);
 
   // src/client/api.ts
   async function getConfig() {
@@ -51284,11 +51563,58 @@ Provided: ${stringify2(envelope)}`);
     if (!r.ok) throw new Error("Failed to load config");
     return r.json();
   }
-  async function generate5Invoices() {
-    const r = await fetch("/api/invoices/generate", { method: "POST" });
-    if (!r.ok) throw new Error("Failed to generate invoices");
-    return r.json();
-  }
+
+  // src/client/invoiceRegistryAbi.ts
+  var invoiceRegistryAbi = [
+    {
+      type: "function",
+      name: "createInvoice",
+      stateMutability: "nonpayable",
+      inputs: [
+        { name: "payee", type: "address" },
+        { name: "currency", type: "address" },
+        { name: "amount", type: "uint256" },
+        { name: "dueDate", type: "uint256" },
+        { name: "invoiceId", type: "bytes32" }
+      ],
+      outputs: [{ name: "", type: "uint256" }]
+    },
+    {
+      type: "function",
+      name: "getInvoice",
+      stateMutability: "view",
+      inputs: [{ name: "number", type: "uint256" }],
+      outputs: [
+        {
+          name: "",
+          type: "tuple",
+          components: [
+            { name: "number", type: "uint256" },
+            { name: "invoiceId", type: "bytes32" },
+            { name: "payee", type: "address" },
+            { name: "currency", type: "address" },
+            { name: "amount", type: "uint256" },
+            { name: "dueDate", type: "uint256" },
+            { name: "status", type: "uint8" }
+          ]
+        }
+      ]
+    },
+    {
+      type: "function",
+      name: "getInvoicesByPayee",
+      stateMutability: "view",
+      inputs: [{ name: "payee", type: "address" }],
+      outputs: [{ name: "", type: "uint256[]" }]
+    },
+    {
+      type: "function",
+      name: "nextInvoiceNumber",
+      stateMutability: "view",
+      inputs: [],
+      outputs: [{ name: "", type: "uint256" }]
+    }
+  ];
 
   // src/client/App.tsx
   var import_jsx_runtime3 = __toESM(require_jsx_runtime(), 1);
@@ -51296,9 +51622,9 @@ Provided: ${stringify2(envelope)}`);
     return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("img", { className: "touchid-image", src: "/assets/touchid.svg", alt: "Touch ID" });
   }
   function FaucetCard(props) {
-    const [isSending, setIsSending] = import_react15.default.useState(false);
-    const [error, setError] = import_react15.default.useState(null);
-    const [success, setSuccess] = import_react15.default.useState(null);
+    const [isSending, setIsSending] = import_react16.default.useState(false);
+    const [error, setError] = import_react16.default.useState(null);
+    const [success, setSuccess] = import_react16.default.useState(null);
     async function requestFunds() {
       if (!props.address) return;
       setIsSending(true);
@@ -51336,26 +51662,37 @@ Provided: ${stringify2(envelope)}`);
       success ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "muted", style: { color: "green", marginTop: 8 }, children: success }) : null
     ] });
   }
+  function decodeInvoiceId(invoiceId) {
+    return hexToString(invoiceId).replace(/\u0000/g, "");
+  }
+  function formatInvoiceAmount(amount) {
+    const value = Number(formatUnits(amount, 6));
+    return Number.isFinite(value) ? value.toFixed(2) : "0.00";
+  }
+  function formatDueDate(dueDate) {
+    return new Date(Number(dueDate) * 1e3).toLocaleDateString();
+  }
   function App() {
-    const [merchantAddress, setMerchantAddress] = import_react15.default.useState();
-    const [invoices, setInvoices] = import_react15.default.useState([]);
+    const [merchantAddress, setMerchantAddress] = import_react16.default.useState();
+    const [invoiceRegistryAddress, setInvoiceRegistryAddress] = import_react16.default.useState();
     const account = useConnection();
     const connect2 = useConnect();
     const [connector] = useConnectors();
     const disconnect2 = useDisconnect();
-    const [paymentNotice, setPaymentNotice] = import_react15.default.useState(null);
-    const paymentTimerRef = import_react15.default.useRef(null);
-    const [copiedId, setCopiedId] = import_react15.default.useState(null);
-    const copyTimerRef = import_react15.default.useRef(null);
+    const [paymentNotice, setPaymentNotice] = import_react16.default.useState(null);
+    const paymentTimerRef = import_react16.default.useRef(null);
+    const [copiedId, setCopiedId] = import_react16.default.useState(null);
+    const copyTimerRef = import_react16.default.useRef(null);
     const alphaUsdToken = "0x20c0000000000000000000000000000000000001";
-    const isLoggedInRef = import_react15.default.useRef(false);
     const balanceQuery = Hooks_exports.token.useGetBalance({
       account: account.address,
       token: alphaUsdToken
     });
     const sendPayment = Hooks_exports.token.useTransferSync();
-    const lastTxRef = import_react15.default.useRef(null);
-    const handleCopyId = import_react15.default.useCallback((id) => {
+    const lastTxRef = import_react16.default.useRef(null);
+    const [createTxHash, setCreateTxHash] = import_react16.default.useState(null);
+    const [isCreatingInvoice, setIsCreatingInvoice] = import_react16.default.useState(false);
+    const handleCopyId = import_react16.default.useCallback((id) => {
       navigator.clipboard?.writeText(id);
       setCopiedId(id);
       if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
@@ -51364,17 +51701,13 @@ Provided: ${stringify2(envelope)}`);
         copyTimerRef.current = null;
       }, 1400);
     }, []);
-    import_react15.default.useEffect(() => {
+    import_react16.default.useEffect(() => {
       return () => {
         if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
         if (paymentTimerRef.current) window.clearTimeout(paymentTimerRef.current);
       };
     }, []);
-    import_react15.default.useEffect(() => {
-      isLoggedInRef.current = Boolean(account.address);
-      if (!account.address) setInvoices([]);
-    }, [account.address]);
-    const handlePaymentSuccess = import_react15.default.useCallback((txHash) => {
+    const handlePaymentSuccess = import_react16.default.useCallback((txHash) => {
       setPaymentNotice(txHash);
       balanceQuery.refetch();
       if (paymentTimerRef.current) window.clearTimeout(paymentTimerRef.current);
@@ -51383,39 +51716,91 @@ Provided: ${stringify2(envelope)}`);
         paymentTimerRef.current = null;
       }, 6e3);
     }, [balanceQuery]);
-    import_react15.default.useEffect(() => {
+    import_react16.default.useEffect(() => {
       const tx = sendPayment.data?.receipt?.transactionHash;
       if (tx && tx !== lastTxRef.current) {
         lastTxRef.current = tx;
         handlePaymentSuccess(String(tx));
       }
     }, [handlePaymentSuccess, sendPayment.data?.receipt?.transactionHash]);
-    const handlePayInvoice = import_react15.default.useCallback((inv) => {
-      if (!merchantAddress) return;
+    const handlePayInvoice = import_react16.default.useCallback((inv) => {
       sendPayment.mutate({
-        amount: parseUnits(inv.amountUsd, 6),
-        to: merchantAddress,
+        amount: inv.amount,
+        to: inv.payee,
         token: alphaUsdToken,
         feeToken: alphaUsdToken,
-        memo: pad(stringToHex(inv.id), { size: 32 })
+        memo: inv.invoiceId
       });
-    }, [alphaUsdToken, merchantAddress, sendPayment]);
-    import_react15.default.useEffect(() => {
-      getConfig().then((c) => setMerchantAddress(c.merchantAddress)).catch(console.error);
-      const es = new EventSource("/api/events");
-      es.addEventListener("invoices", (e) => {
-        if (!isLoggedInRef.current) return;
-        const data = JSON.parse(e.data);
-        setInvoices(data.invoices);
-      });
-      es.addEventListener("invoicePaid", (e) => {
-        if (!isLoggedInRef.current) return;
-        const data = JSON.parse(e.data);
-        setInvoices((prev) => prev.map((x) => x.id === data.invoice.id ? data.invoice : x));
-      });
-      return () => es.close();
+    }, [alphaUsdToken, sendPayment]);
+    const invoiceNumbersQuery = useReadContract({
+      address: invoiceRegistryAddress,
+      abi: invoiceRegistryAbi,
+      functionName: "getInvoicesByPayee",
+      args: account.address ? [account.address] : void 0,
+      query: { enabled: Boolean(invoiceRegistryAddress && account.address) }
+    });
+    const invoiceNumbers = invoiceNumbersQuery.data ?? [];
+    const invoiceContracts = invoiceRegistryAddress ? invoiceNumbers.map((number) => ({
+      address: invoiceRegistryAddress,
+      abi: invoiceRegistryAbi,
+      functionName: "getInvoice",
+      args: [number]
+    })) : [];
+    const invoicesQuery = useReadContracts({
+      contracts: invoiceContracts,
+      query: { enabled: invoiceContracts.length > 0 }
+    });
+    const onchainInvoices = import_react16.default.useMemo(() => {
+      return (invoicesQuery.data ?? []).flatMap((entry) => {
+        if (entry.status !== "success" || !entry.result) return [];
+        const result = entry.result;
+        const { number, invoiceId, payee, currency, amount, dueDate, status } = result;
+        return [{ number, invoiceId, payee, currency, amount, dueDate, status }];
+      }).sort((a, b) => Number(a.number - b.number));
+    }, [invoicesQuery.data]);
+    const openInvoices = import_react16.default.useMemo(() => {
+      return onchainInvoices.filter((inv) => inv.status === 0);
+    }, [onchainInvoices]);
+    const createReceipt = useWaitForTransactionReceipt({
+      hash: createTxHash ?? void 0,
+      query: { enabled: Boolean(createTxHash) }
+    });
+    import_react16.default.useEffect(() => {
+      if (createReceipt.isSuccess) {
+        invoiceNumbersQuery.refetch();
+        invoicesQuery.refetch();
+      }
+    }, [createReceipt.isSuccess, invoiceNumbersQuery, invoicesQuery]);
+    import_react16.default.useEffect(() => {
+      if (createReceipt.isSuccess) {
+        setCreateTxHash(null);
+      }
+    }, [createReceipt.isSuccess]);
+    const handleGenerateInvoice = import_react16.default.useCallback(async () => {
+      if (!account.address) return;
+      setIsCreatingInvoice(true);
+      try {
+        const r = await fetch("/api/invoices/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ payee: account.address })
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data?.error ?? "Failed to create invoice");
+        setCreateTxHash(data.hash);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsCreatingInvoice(false);
+      }
+    }, [account.address]);
+    import_react16.default.useEffect(() => {
+      getConfig().then((c) => {
+        setMerchantAddress(c.merchantAddress);
+        setInvoiceRegistryAddress(c.invoiceRegistryAddress);
+      }).catch(console.error);
     }, []);
-    const formattedBalance = import_react15.default.useMemo(() => {
+    const formattedBalance = import_react16.default.useMemo(() => {
       const raw = Number(formatUnits(balanceQuery.data ?? 0n, 6));
       return Number.isFinite(raw) ? Math.round(raw).toLocaleString("en-US") : "0";
     }, [balanceQuery.data]);
@@ -51473,11 +51858,7 @@ Provided: ${stringify2(envelope)}`);
                 "button",
                 {
                   className: "icon-button",
-                  onClick: () => {
-                    setInvoices([]);
-                    setMerchantAddress(void 0);
-                    disconnect2.disconnect();
-                  },
+                  onClick: () => disconnect2.disconnect(),
                   "aria-label": "Sign out",
                   title: "Sign out",
                   children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
@@ -51511,33 +51892,33 @@ Provided: ${stringify2(envelope)}`);
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Invoices" }),
               sendPayment.isPending ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "muted", children: "Paying\u2026" }) : null
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { marginTop: 8, display: "grid", gap: 10 }, children: invoices.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "muted", children: "No invoices yet." }) : invoices.map((inv) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "invoice-item", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { marginTop: 8, display: "grid", gap: 10 }, children: openInvoices.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "muted", children: "No open invoices." }) : openInvoices.map((inv) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "invoice-item", children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "invoice-title", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { children: [
                     "Invoice ",
-                    inv.number
+                    inv.number.toString()
                   ] }),
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "muted", children: [
                     "$",
-                    inv.amountUsd
+                    formatInvoiceAmount(inv.amount)
                   ] })
                 ] }),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "muted", children: [
                   "ID: ",
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("code", { children: inv.id })
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("code", { children: decodeInvoiceId(inv.invoiceId) })
                 ] })
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                 "button",
                 {
                   className: "btn btn-primary",
-                  disabled: !merchantAddress || sendPayment.isPending || inv.status === "Paid",
+                  disabled: sendPayment.isPending,
                   onClick: () => handlePayInvoice(inv),
-                  children: inv.status === "Paid" ? "Paid" : "Pay"
+                  children: "Pay"
                 }
               )
-            ] }, inv.id)) })
+            ] }, String(inv.number))) })
           ] })
         ] })
       ] }) }) }),
@@ -51583,41 +51964,38 @@ Provided: ${stringify2(envelope)}`);
             "button",
             {
               className: "btn btn-outline",
-              disabled: !account.address,
-              onClick: async () => {
-                if (!account.address) return;
-                const r = await generate5Invoices();
-                setMerchantAddress(r.merchantAddress);
-                setInvoices(r.invoices);
-              },
-              children: "Generate 5 invoices"
+              disabled: !account.address || isCreatingInvoice || !invoiceRegistryAddress,
+              onClick: handleGenerateInvoice,
+              children: isCreatingInvoice ? "Generating\u2026" : "Generate invoice"
             }
           )
         ] }) }),
-        invoices.map((inv) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "card", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "row", style: { justifyContent: "space-between" }, children: [
+        onchainInvoices.map((inv) => {
+          const invoiceId = decodeInvoiceId(inv.invoiceId);
+          const amountLabel = formatInvoiceAmount(inv.amount);
+          return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "card", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "row", style: { justifyContent: "space-between" }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "row", style: { gap: 10 }, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
                   "Invoice ",
-                  inv.number
+                  inv.number.toString()
                 ] }),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "muted", style: { display: "flex", alignItems: "center", gap: 8 }, children: [
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { children: [
                     "Amount: ",
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("code", { children: [
                       "$",
-                      inv.amountUsd
+                      amountLabel
                     ] })
                   ] }),
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                     "button",
                     {
                       type: "button",
-                      onClick: () => handleCopyId(inv.amountUsd),
+                      onClick: () => handleCopyId(amountLabel),
                       title: "Copy invoice amount",
                       "aria-label": "Copy invoice amount",
-                      className: copiedId === inv.amountUsd ? "copy-button copied" : "copy-button",
+                      className: copiedId === amountLabel ? "copy-button copied" : "copy-button",
                       style: {
                         padding: 4,
                         borderRadius: 6,
@@ -51625,7 +52003,7 @@ Provided: ${stringify2(envelope)}`);
                         background: "#fff",
                         cursor: "pointer"
                       },
-                      children: copiedId === inv.amountUsd ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                      children: copiedId === amountLabel ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                         "svg",
                         {
                           width: "14",
@@ -51659,22 +52037,22 @@ Provided: ${stringify2(envelope)}`);
                       )
                     }
                   ),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: copiedId === inv.amountUsd ? "copy-badge show" : "copy-badge", children: "Copied" })
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: copiedId === amountLabel ? "copy-badge show" : "copy-badge", children: "Copied" })
                 ] })
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "muted", style: { display: "flex", alignItems: "center", gap: 8 }, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { children: [
                   "ID: ",
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("code", { children: inv.id })
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("code", { children: invoiceId })
                 ] }),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                   "button",
                   {
                     type: "button",
-                    onClick: () => handleCopyId(inv.id),
+                    onClick: () => handleCopyId(invoiceId),
                     title: "Copy invoice ID",
                     "aria-label": "Copy invoice ID",
-                    className: copiedId === inv.id ? "copy-button copied" : "copy-button",
+                    className: copiedId === invoiceId ? "copy-button copied" : "copy-button",
                     style: {
                       padding: 4,
                       borderRadius: 6,
@@ -51682,7 +52060,7 @@ Provided: ${stringify2(envelope)}`);
                       background: "#fff",
                       cursor: "pointer"
                     },
-                    children: copiedId === inv.id ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                    children: copiedId === invoiceId ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                       "svg",
                       {
                         width: "14",
@@ -51716,25 +52094,16 @@ Provided: ${stringify2(envelope)}`);
                     )
                   }
                 ),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: copiedId === inv.id ? "copy-badge show" : "copy-badge", children: "Copied" })
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: copiedId === invoiceId ? "copy-badge show" : "copy-badge", children: "Copied" })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "muted", style: { marginTop: 6 }, children: [
+                "Due: ",
+                formatDueDate(inv.dueDate)
               ] })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: inv.status === "Paid" ? "paid" : "unpaid", children: inv.status })
-          ] }),
-          inv.status === "Paid" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "muted", style: { marginTop: 8 }, children: [
-            "Tx:",
-            " ",
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-              "a",
-              {
-                href: `https://explorer.tempo.xyz/tx/${inv.paidTxHash}`,
-                target: "_blank",
-                rel: "noreferrer",
-                children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("code", { children: inv.paidTxHash })
-              }
-            )
-          ] }) : null
-        ] }, inv.id))
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: inv.status === 1 ? "paid" : "unpaid", children: inv.status === 1 ? "Paid" : "Open" })
+          ] }) }, String(inv.number));
+        })
       ] })
     ] });
   }
@@ -51743,7 +52112,7 @@ Provided: ${stringify2(envelope)}`);
   var import_jsx_runtime4 = __toESM(require_jsx_runtime(), 1);
   var qc = new QueryClient();
   (0, import_client.createRoot)(document.getElementById("root")).render(
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react16.default.StrictMode, { children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(WagmiProvider, { config: wagmiConfig, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(QueryClientProvider, { client: qc, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(App, {}) }) }) })
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react17.default.StrictMode, { children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(WagmiProvider, { config: wagmiConfig, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(QueryClientProvider, { client: qc, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(App, {}) }) }) })
   );
 })();
 /*! Bundled license information:

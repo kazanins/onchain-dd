@@ -4,10 +4,13 @@ import express from 'express'
 import cors from 'cors'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { createWalletClient, http, parseUnits, pad, stringToHex } from 'viem'
+import { privateKeyToAccount } from 'viem/accounts'
+import { tempo } from 'tempo.ts/chains'
 
 import { client, ALPHA_USD } from './tempo.js'
 import { broadcast, addClient, removeClient } from './sse.js'
-import { generateInvoices, type Invoice } from './invoices.js'
+import { makeInvoiceId, type Invoice } from './invoices.js'
 
 const app = express()
 app.use(cors())
@@ -25,6 +28,21 @@ const merchantAddress = process.env.MERCHANT_ADDRESS as `0x${string}` | undefine
 if (!merchantAddress) {
   throw new Error('Set MERCHANT_ADDRESS in .env')
 }
+const invoiceRegistryAddress = process.env.INVOICE_REGISTRY_ADDRESS as `0x${string}` | undefined
+if (!invoiceRegistryAddress) {
+  throw new Error('Set INVOICE_REGISTRY_ADDRESS in .env')
+}
+const merchantPk = process.env.MERCHANT_PK as `0x${string}` | undefined
+if (!merchantPk) {
+  throw new Error('Set MERCHANT_PK in .env')
+}
+
+const merchantAccount = privateKeyToAccount(merchantPk)
+const walletClient = createWalletClient({
+  account: merchantAccount,
+  chain: tempo({ feeToken: ALPHA_USD }),
+  transport: http(process.env.TEMPO_RPC_URL),
+})
 
 // In-memory invoice store (swap for DB later)
 let invoices: Invoice[] = []
@@ -40,6 +58,7 @@ app.get('/api/config', (_req, res) => {
   res.json({
     merchantAddress,
     alphaUsd: ALPHA_USD,
+    invoiceRegistryAddress,
   })
 })
 
@@ -48,9 +67,68 @@ app.get('/api/invoices', (_req, res) => {
 })
 
 app.post('/api/invoices/generate', (_req, res) => {
-  invoices = generateInvoices(5)
-  broadcast('invoices', { invoices })
-  res.json({ invoices, merchantAddress })
+  res.status(400).json({ error: 'Use POST /api/invoices/create with a payee.' })
+})
+
+const invoiceRegistryAbi = [
+  {
+    type: 'function',
+    name: 'nextInvoiceNumber',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'createInvoice',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'payee', type: 'address' },
+      { name: 'currency', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+      { name: 'dueDate', type: 'uint256' },
+      { name: 'invoiceId', type: 'bytes32' },
+    ],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+] as const
+
+app.post('/api/invoices/create', async (req, res) => {
+  try {
+    const payee = req.body?.payee as `0x${string}` | undefined
+    if (!payee) return res.status(400).json({ error: 'Missing payee address' })
+
+    const nextNumber = await client.readContract({
+      address: invoiceRegistryAddress,
+      abi: invoiceRegistryAbi,
+      functionName: 'nextInvoiceNumber',
+    })
+    const invoiceId = makeInvoiceId(nextNumber)
+    const amount = (Math.random() * 99.99 + 0.01).toFixed(2)
+    const amountUnits = parseUnits(amount, 6)
+    const dueInDays = Math.floor(Math.random() * 7) + 1
+    const dueDate = BigInt(Math.floor(Date.now() / 1000) + dueInDays * 24 * 60 * 60)
+    const invoiceIdBytes = pad(stringToHex(invoiceId), { size: 32 })
+
+    const hash = await walletClient.writeContract({
+      address: invoiceRegistryAddress,
+      abi: invoiceRegistryAbi,
+      functionName: 'createInvoice',
+      args: [payee, ALPHA_USD, amountUnits, dueDate, invoiceIdBytes],
+      feeToken: ALPHA_USD,
+    } as never)
+
+    res.json({
+      hash,
+      invoiceId,
+      amount,
+      dueDate: dueDate.toString(),
+      number: nextNumber.toString(),
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to create invoice'
+    res.status(500).json({ error: message })
+  }
 })
 
 app.get('/api/events', (req, res) => {

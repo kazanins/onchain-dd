@@ -3,3 +3,7 @@ node_modules
 .DS_Store
 dist
 .vercel
+out
+cache
+lib
+broadcast

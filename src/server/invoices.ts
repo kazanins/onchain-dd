@@ -17,8 +17,9 @@ function randomShortId() {
   return Math.random().toString(16).slice(2, 10)
 }
 
-export function makeInvoiceId(n: number) {
-  return `INV-${String(n).padStart(4, '0')}-${randomShortId()}`
+export function makeInvoiceId(n: number | bigint) {
+  const value = typeof n === 'bigint' ? Number(n) : n
+  return `INV-${String(value).padStart(4, '0')}-${randomShortId()}`
 }
 
 export function toMemoHex(invoiceId: string): `0x${string}` {

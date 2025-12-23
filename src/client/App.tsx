@@ -1,8 +1,9 @@
 import React from 'react'
-import { useConnection, useConnect, useConnectors, useDisconnect } from 'wagmi'
+import { useConnection, useConnect, useConnectors, useDisconnect, useReadContract, useReadContracts, useWaitForTransactionReceipt } from 'wagmi'
 import { Hooks } from 'tempo.ts/wagmi'
-import { formatUnits, parseUnits, pad, stringToHex } from 'viem'
-import { generate5Invoices, getConfig, type Invoice } from './api'
+import { formatUnits, hexToString, parseUnits, pad, stringToHex } from 'viem'
+import { getConfig } from './api'
+import { invoiceRegistryAbi } from './invoiceRegistryAbi'
 
 function TouchIdIcon() {
   return (
@@ -62,9 +63,32 @@ function FaucetCard(props: { address?: `0x${string}`; onSuccess?: () => void }) 
   )
 }
 
+type OnchainInvoice = {
+  number: bigint
+  invoiceId: `0x${string}`
+  payee: `0x${string}`
+  currency: `0x${string}`
+  amount: bigint
+  dueDate: bigint
+  status: number
+}
+
+function decodeInvoiceId(invoiceId: `0x${string}`) {
+  return hexToString(invoiceId).replace(/\u0000/g, '')
+}
+
+function formatInvoiceAmount(amount: bigint) {
+  const value = Number(formatUnits(amount, 6))
+  return Number.isFinite(value) ? value.toFixed(2) : '0.00'
+}
+
+function formatDueDate(dueDate: bigint) {
+  return new Date(Number(dueDate) * 1000).toLocaleDateString()
+}
+
 export function App() {
   const [merchantAddress, setMerchantAddress] = React.useState<`0x${string}` | undefined>()
-  const [invoices, setInvoices] = React.useState<Invoice[]>([])
+  const [invoiceRegistryAddress, setInvoiceRegistryAddress] = React.useState<`0x${string}` | undefined>()
   const account = useConnection()
   const connect = useConnect()
   const [connector] = useConnectors()
@@ -74,13 +98,14 @@ export function App() {
   const [copiedId, setCopiedId] = React.useState<string | null>(null)
   const copyTimerRef = React.useRef<number | null>(null)
   const alphaUsdToken = '0x20c0000000000000000000000000000000000001' as const
-  const isLoggedInRef = React.useRef(false)
   const balanceQuery = Hooks.token.useGetBalance({
     account: account.address,
     token: alphaUsdToken,
   })
   const sendPayment = Hooks.token.useTransferSync()
   const lastTxRef = React.useRef<string | null>(null)
+  const [createTxHash, setCreateTxHash] = React.useState<`0x${string}` | null>(null)
+  const [isCreatingInvoice, setIsCreatingInvoice] = React.useState(false)
 
   const handleCopyId = React.useCallback((id: string) => {
     navigator.clipboard?.writeText(id)
@@ -98,11 +123,6 @@ export function App() {
       if (paymentTimerRef.current) window.clearTimeout(paymentTimerRef.current)
     }
   }, [])
-
-  React.useEffect(() => {
-    isLoggedInRef.current = Boolean(account.address)
-    if (!account.address) setInvoices([])
-  }, [account.address])
 
   const handlePaymentSuccess = React.useCallback((txHash: string) => {
     setPaymentNotice(txHash)
@@ -122,33 +142,106 @@ export function App() {
     }
   }, [handlePaymentSuccess, sendPayment.data?.receipt?.transactionHash])
 
-  const handlePayInvoice = React.useCallback((inv: Invoice) => {
-    if (!merchantAddress) return
+  const handlePayInvoice = React.useCallback((inv: OnchainInvoice) => {
     sendPayment.mutate({
-      amount: parseUnits(inv.amountUsd, 6),
-      to: merchantAddress,
+      amount: inv.amount,
+      to: inv.payee,
       token: alphaUsdToken,
       feeToken: alphaUsdToken,
-      memo: pad(stringToHex(inv.id), { size: 32 }),
+      memo: inv.invoiceId,
     })
-  }, [alphaUsdToken, merchantAddress, sendPayment])
+  }, [alphaUsdToken, sendPayment])
+
+  const invoiceNumbersQuery = useReadContract({
+    address: invoiceRegistryAddress,
+    abi: invoiceRegistryAbi,
+    functionName: 'getInvoicesByPayee',
+    args: account.address ? [account.address] : undefined,
+    query: { enabled: Boolean(invoiceRegistryAddress && account.address) },
+  })
+
+  const invoiceNumbers = (invoiceNumbersQuery.data ?? []) as bigint[]
+  const invoiceContracts = invoiceRegistryAddress
+    ? invoiceNumbers.map((number) => ({
+        address: invoiceRegistryAddress,
+        abi: invoiceRegistryAbi,
+        functionName: 'getInvoice' as const,
+        args: [number] as const,
+      }))
+    : []
+
+  const invoicesQuery = useReadContracts({
+    contracts: invoiceContracts,
+    query: { enabled: invoiceContracts.length > 0 },
+  })
+
+  const onchainInvoices = React.useMemo(() => {
+    return (invoicesQuery.data ?? [])
+      .flatMap((entry) => {
+        if (entry.status !== 'success' || !entry.result) return []
+        const result = entry.result as unknown as {
+          number: bigint
+          invoiceId: `0x${string}`
+          payee: `0x${string}`
+          currency: `0x${string}`
+          amount: bigint
+          dueDate: bigint
+          status: number
+        }
+        const { number, invoiceId, payee, currency, amount, dueDate, status } = result
+        return [{ number, invoiceId, payee, currency, amount, dueDate, status }]
+      })
+      .sort((a, b) => Number(a.number - b.number))
+  }, [invoicesQuery.data])
+
+  const openInvoices = React.useMemo(() => {
+    return onchainInvoices.filter((inv) => inv.status === 0)
+  }, [onchainInvoices])
+
+  const createReceipt = useWaitForTransactionReceipt({
+    hash: createTxHash ?? undefined,
+    query: { enabled: Boolean(createTxHash) },
+  })
 
   React.useEffect(() => {
-    getConfig().then((c) => setMerchantAddress(c.merchantAddress)).catch(console.error)
+    if (createReceipt.isSuccess) {
+      invoiceNumbersQuery.refetch()
+      invoicesQuery.refetch()
+    }
+  }, [createReceipt.isSuccess, invoiceNumbersQuery, invoicesQuery])
 
-    const es = new EventSource('/api/events')
-    es.addEventListener('invoices', (e) => {
-      if (!isLoggedInRef.current) return
-      const data = JSON.parse((e as MessageEvent).data) as { invoices: Invoice[] }
-      setInvoices(data.invoices)
-    })
-    es.addEventListener('invoicePaid', (e) => {
-      if (!isLoggedInRef.current) return
-      const data = JSON.parse((e as MessageEvent).data) as { invoice: Invoice }
-      // optimistic merge
-      setInvoices((prev) => prev.map((x) => (x.id === data.invoice.id ? data.invoice : x)))
-    })
-    return () => es.close()
+  React.useEffect(() => {
+    if (createReceipt.isSuccess) {
+      setCreateTxHash(null)
+    }
+  }, [createReceipt.isSuccess])
+
+  const handleGenerateInvoice = React.useCallback(async () => {
+    if (!account.address) return
+    setIsCreatingInvoice(true)
+    try {
+      const r = await fetch('/api/invoices/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payee: account.address }),
+      })
+      const data = await r.json()
+      if (!r.ok) throw new Error(data?.error ?? 'Failed to create invoice')
+      setCreateTxHash(data.hash as `0x${string}`)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setIsCreatingInvoice(false)
+    }
+  }, [account.address])
+
+  React.useEffect(() => {
+    getConfig()
+      .then((c) => {
+        setMerchantAddress(c.merchantAddress)
+        setInvoiceRegistryAddress(c.invoiceRegistryAddress)
+      })
+      .catch(console.error)
   }, [])
 
   const formattedBalance = React.useMemo(() => {
@@ -210,11 +303,7 @@ export function App() {
                     </div>
                     <button
                       className="icon-button"
-                      onClick={() => {
-                        setInvoices([])
-                        setMerchantAddress(undefined)
-                        disconnect.disconnect()
-                      }}
+                      onClick={() => disconnect.disconnect()}
                       aria-label="Sign out"
                       title="Sign out"
                     >
@@ -245,24 +334,24 @@ export function App() {
                   {sendPayment.isPending ? <span className="muted">Paying…</span> : null}
                 </div>
                 <div style={{ marginTop: 8, display: 'grid', gap: 10 }}>
-                  {invoices.length === 0 ? (
-                    <div className="muted">No invoices yet.</div>
+                  {openInvoices.length === 0 ? (
+                    <div className="muted">No open invoices.</div>
                   ) : (
-                    invoices.map((inv) => (
-                      <div key={inv.id} className="invoice-item">
+                    openInvoices.map((inv) => (
+                      <div key={String(inv.number)} className="invoice-item">
                         <div>
                           <div className="invoice-title">
-                            <span>Invoice {inv.number}</span>
-                            <span className="muted">${inv.amountUsd}</span>
+                            <span>Invoice {inv.number.toString()}</span>
+                            <span className="muted">${formatInvoiceAmount(inv.amount)}</span>
                           </div>
-                          <div className="muted">ID: <code>{inv.id}</code></div>
+                          <div className="muted">ID: <code>{decodeInvoiceId(inv.invoiceId)}</code></div>
                         </div>
                         <button
                           className="btn btn-primary"
-                          disabled={!merchantAddress || sendPayment.isPending || inv.status === 'Paid'}
+                          disabled={sendPayment.isPending}
                           onClick={() => handlePayInvoice(inv)}
                         >
-                          {inv.status === 'Paid' ? 'Paid' : 'Pay'}
+                          Pay
                         </button>
                       </div>
                     ))
@@ -316,34 +405,32 @@ export function App() {
             <b>Invoices</b>
             <button
               className="btn btn-outline"
-              disabled={!account.address}
-              onClick={async () => {
-                if (!account.address) return
-                const r = await generate5Invoices()
-                setMerchantAddress(r.merchantAddress)
-                setInvoices(r.invoices)
-              }}
+              disabled={!account.address || isCreatingInvoice || !invoiceRegistryAddress}
+              onClick={handleGenerateInvoice}
             >
-              Generate 5 invoices
+              {isCreatingInvoice ? 'Generating…' : 'Generate invoice'}
             </button>
           </div>
 
         </div>
 
-        {invoices.map((inv) => (
-          <div key={inv.id} className="card">
+        {onchainInvoices.map((inv) => {
+          const invoiceId = decodeInvoiceId(inv.invoiceId)
+          const amountLabel = formatInvoiceAmount(inv.amount)
+          return (
+          <div key={String(inv.number)} className="card">
             <div className="row" style={{ justifyContent: 'space-between' }}>
               <div>
                 <div className="row" style={{ gap: 10 }}>
-                  <b>Invoice {inv.number}</b>
+                  <b>Invoice {inv.number.toString()}</b>
                   <span className="muted" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span>Amount: <code>${inv.amountUsd}</code></span>
+                    <span>Amount: <code>${amountLabel}</code></span>
                     <button
                       type="button"
-                      onClick={() => handleCopyId(inv.amountUsd)}
+                      onClick={() => handleCopyId(amountLabel)}
                       title="Copy invoice amount"
                       aria-label="Copy invoice amount"
-                      className={copiedId === inv.amountUsd ? 'copy-button copied' : 'copy-button'}
+                      className={copiedId === amountLabel ? 'copy-button copied' : 'copy-button'}
                       style={{
                         padding: 4,
                         borderRadius: 6,
@@ -352,9 +439,9 @@ export function App() {
                         cursor: 'pointer',
                       }}
                     >
-                      {copiedId === inv.amountUsd ? (
-                        <svg
-                          width="14"
+                    {copiedId === amountLabel ? (
+                      <svg
+                        width="14"
                           height="14"
                           viewBox="0 0 24 24"
                           fill="none"
@@ -383,19 +470,19 @@ export function App() {
                         </svg>
                       )}
                     </button>
-                    <span className={copiedId === inv.amountUsd ? 'copy-badge show' : 'copy-badge'}>
+                    <span className={copiedId === amountLabel ? 'copy-badge show' : 'copy-badge'}>
                       Copied
                     </span>
                   </span>
                 </div>
                 <div className="muted" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span>ID: <code>{inv.id}</code></span>
+                  <span>ID: <code>{invoiceId}</code></span>
                   <button
                     type="button"
-                    onClick={() => handleCopyId(inv.id)}
+                    onClick={() => handleCopyId(invoiceId)}
                     title="Copy invoice ID"
                     aria-label="Copy invoice ID"
-                    className={copiedId === inv.id ? 'copy-button copied' : 'copy-button'}
+                    className={copiedId === invoiceId ? 'copy-button copied' : 'copy-button'}
                     style={{
                       padding: 4,
                       borderRadius: 6,
@@ -404,7 +491,7 @@ export function App() {
                       cursor: 'pointer',
                     }}
                   >
-                    {copiedId === inv.id ? (
+                    {copiedId === invoiceId ? (
                       <svg
                         width="14"
                         height="14"
@@ -434,31 +521,22 @@ export function App() {
                         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                       </svg>
                     )}
-                  </button>
-                  <span className={copiedId === inv.id ? 'copy-badge show' : 'copy-badge'}>
+                    </button>
+                  <span className={copiedId === invoiceId ? 'copy-badge show' : 'copy-badge'}>
                     Copied
                   </span>
                 </div>
+                <div className="muted" style={{ marginTop: 6 }}>
+                  Due: {formatDueDate(inv.dueDate)}
+                </div>
               </div>
-              <div className={inv.status === 'Paid' ? 'paid' : 'unpaid'}>
-                {inv.status}
+              <div className={inv.status === 1 ? 'paid' : 'unpaid'}>
+                {inv.status === 1 ? 'Paid' : 'Open'}
               </div>
             </div>
-
-            {inv.status === 'Paid' ? (
-              <div className="muted" style={{ marginTop: 8 }}>
-                Tx:{' '}
-                <a
-                  href={`https://explorer.tempo.xyz/tx/${inv.paidTxHash}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <code>{inv.paidTxHash}</code>
-                </a>
-              </div>
-            ) : null}
           </div>
-        ))}
+        )
+        })}
 
       </div>
     </div>
