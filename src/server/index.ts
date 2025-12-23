@@ -75,6 +75,8 @@ app.get(/.*/, (_req, res) => {
 
 // --- Chain listener: TIP-20 TransferWithMemo -> mark invoice Paid
 function startInvoiceWatcher() {
+  const merchant = merchantAddress
+  if (!merchant) return
   return client.watchEvent({
     address: ALPHA_USD,
     event: {
@@ -90,7 +92,7 @@ function startInvoiceWatcher() {
     onLogs: (logs) => {
       for (const log of logs) {
         // Only consider payments to our merchant address
-        if ((log.args.to as string)?.toLowerCase() !== merchantAddress.toLowerCase()) continue
+        if ((log.args.to as string)?.toLowerCase() !== merchant.toLowerCase()) continue
 
         const memo = log.args.memo as `0x${string}`
         const inv = invoiceByMemoHex(memo)

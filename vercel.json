@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "installCommand": "pnpm install",
+  "buildCommand": "pnpm build",
+  "builds": [
+    { "src": "dist/server/index.js", "use": "@vercel/node" }
+  ],
+  "routes": [
+    { "src": "/assets/(.*)", "dest": "/public/assets/$1" },
+    { "src": "/(.*)", "dest": "dist/server/index.js" }
+  ]
+}

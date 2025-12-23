@@ -127,6 +127,7 @@ export function App() {
       amount: parseUnits(inv.amountUsd, 6),
       to: merchantAddress,
       token: alphaUsdToken,
+      feeToken: alphaUsdToken,
       memo: pad(stringToHex(inv.id), { size: 32 }),
     })
   }, [alphaUsdToken, merchantAddress, sendPayment])
@@ -187,10 +188,10 @@ export function App() {
                   <button
                     className="btn btn-outline"
                     onClick={() =>
-                      connect.connect({
-                        connector,
-                        capabilities: { type: 'sign-up' },
-                      })
+                    connect.connect({
+                      connector,
+                      capabilities: { type: 'sign-up' },
+                    } as never)
                     }
                   >
                     Sign up
