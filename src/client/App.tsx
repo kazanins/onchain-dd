@@ -10,7 +10,7 @@ function TouchIdIcon() {
   )
 }
 
-function FaucetCard(props: { address?: `0x${string}` }) {
+function FaucetCard(props: { address?: `0x${string}`; onSuccess?: () => void }) {
   const [isSending, setIsSending] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [success, setSuccess] = React.useState<string | null>(null)
@@ -36,6 +36,7 @@ function FaucetCard(props: { address?: `0x${string}` }) {
         throw new Error(data?.error?.message ?? `Faucet request failed (${res.status})`)
       }
       setSuccess('Faucet request sent. Funds should arrive shortly.')
+      props.onSuccess?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Faucet request failed')
     } finally {
@@ -237,7 +238,7 @@ export function App() {
                 <div className="balance-token">AlphaUSD</div>
                 <div className="balance-address">{account.address}</div>
               </div>
-              <FaucetCard address={account.address} />
+              <FaucetCard address={account.address} onSuccess={() => balanceQuery.refetch()} />
               <div className="phone-card">
                 <div className="row" style={{ justifyContent: 'space-between' }}>
                   <b>Invoices</b>

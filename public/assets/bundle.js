@@ -51320,6 +51320,7 @@ Provided: ${stringify2(envelope)}`);
           throw new Error(data?.error?.message ?? `Faucet request failed (${res.status})`);
         }
         setSuccess("Faucet request sent. Funds should arrive shortly.");
+        props.onSuccess?.();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Faucet request failed");
       } finally {
@@ -51504,7 +51505,7 @@ Provided: ${stringify2(envelope)}`);
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "balance-token", children: "AlphaUSD" }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "balance-address", children: account.address })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(FaucetCard, { address: account.address }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(FaucetCard, { address: account.address, onSuccess: () => balanceQuery.refetch() }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "phone-card", children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "row", style: { justifyContent: "space-between" }, children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Invoices" }),
