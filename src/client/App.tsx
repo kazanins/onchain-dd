@@ -106,6 +106,7 @@ export function App() {
   const lastTxRef = React.useRef<string | null>(null)
   const [createTxHash, setCreateTxHash] = React.useState<`0x${string}` | null>(null)
   const [isCreatingInvoice, setIsCreatingInvoice] = React.useState(false)
+  const [pendingInvoiceNumber, setPendingInvoiceNumber] = React.useState<bigint | null>(null)
 
   const handleCopyId = React.useCallback((id: string) => {
     navigator.clipboard?.writeText(id)
@@ -134,15 +135,8 @@ export function App() {
     }, 6000)
   }, [balanceQuery])
 
-  React.useEffect(() => {
-    const tx = sendPayment.data?.receipt?.transactionHash
-    if (tx && tx !== lastTxRef.current) {
-      lastTxRef.current = tx
-      handlePaymentSuccess(String(tx))
-    }
-  }, [handlePaymentSuccess, sendPayment.data?.receipt?.transactionHash])
-
   const handlePayInvoice = React.useCallback((inv: OnchainInvoice) => {
+    setPendingInvoiceNumber(inv.number)
     sendPayment.mutate({
       amount: inv.amount,
       to: inv.payee,
@@ -174,6 +168,34 @@ export function App() {
     contracts: invoiceContracts,
     query: { enabled: invoiceContracts.length > 0 },
   })
+
+  React.useEffect(() => {
+    const tx = sendPayment.data?.receipt?.transactionHash
+    if (tx && tx !== lastTxRef.current) {
+      lastTxRef.current = tx
+      handlePaymentSuccess(String(tx))
+      if (pendingInvoiceNumber) {
+        fetch('/api/invoices/mark-paid', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ number: pendingInvoiceNumber.toString() }),
+        })
+          .then((r) => r.json())
+          .then(() => {
+            invoiceNumbersQuery.refetch()
+            invoicesQuery.refetch()
+          })
+          .catch(console.error)
+          .finally(() => setPendingInvoiceNumber(null))
+      }
+    }
+  }, [
+    handlePaymentSuccess,
+    invoiceNumbersQuery,
+    invoicesQuery,
+    pendingInvoiceNumber,
+    sendPayment.data?.receipt?.transactionHash,
+  ])
 
   const onchainInvoices = React.useMemo(() => {
     return (invoicesQuery.data ?? [])

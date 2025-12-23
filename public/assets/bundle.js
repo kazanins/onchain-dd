@@ -51613,6 +51613,13 @@ Provided: ${stringify2(envelope)}`);
       stateMutability: "view",
       inputs: [],
       outputs: [{ name: "", type: "uint256" }]
+    },
+    {
+      type: "function",
+      name: "markPaid",
+      stateMutability: "nonpayable",
+      inputs: [{ name: "number", type: "uint256" }],
+      outputs: []
     }
   ];
 
@@ -51692,6 +51699,7 @@ Provided: ${stringify2(envelope)}`);
     const lastTxRef = import_react16.default.useRef(null);
     const [createTxHash, setCreateTxHash] = import_react16.default.useState(null);
     const [isCreatingInvoice, setIsCreatingInvoice] = import_react16.default.useState(false);
+    const [pendingInvoiceNumber, setPendingInvoiceNumber] = import_react16.default.useState(null);
     const handleCopyId = import_react16.default.useCallback((id) => {
       navigator.clipboard?.writeText(id);
       setCopiedId(id);
@@ -51716,14 +51724,8 @@ Provided: ${stringify2(envelope)}`);
         paymentTimerRef.current = null;
       }, 6e3);
     }, [balanceQuery]);
-    import_react16.default.useEffect(() => {
-      const tx = sendPayment.data?.receipt?.transactionHash;
-      if (tx && tx !== lastTxRef.current) {
-        lastTxRef.current = tx;
-        handlePaymentSuccess(String(tx));
-      }
-    }, [handlePaymentSuccess, sendPayment.data?.receipt?.transactionHash]);
     const handlePayInvoice = import_react16.default.useCallback((inv) => {
+      setPendingInvoiceNumber(inv.number);
       sendPayment.mutate({
         amount: inv.amount,
         to: inv.payee,
@@ -51750,6 +51752,29 @@ Provided: ${stringify2(envelope)}`);
       contracts: invoiceContracts,
       query: { enabled: invoiceContracts.length > 0 }
     });
+    import_react16.default.useEffect(() => {
+      const tx = sendPayment.data?.receipt?.transactionHash;
+      if (tx && tx !== lastTxRef.current) {
+        lastTxRef.current = tx;
+        handlePaymentSuccess(String(tx));
+        if (pendingInvoiceNumber) {
+          fetch("/api/invoices/mark-paid", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ number: pendingInvoiceNumber.toString() })
+          }).then((r) => r.json()).then(() => {
+            invoiceNumbersQuery.refetch();
+            invoicesQuery.refetch();
+          }).catch(console.error).finally(() => setPendingInvoiceNumber(null));
+        }
+      }
+    }, [
+      handlePaymentSuccess,
+      invoiceNumbersQuery,
+      invoicesQuery,
+      pendingInvoiceNumber,
+      sendPayment.data?.receipt?.transactionHash
+    ]);
     const onchainInvoices = import_react16.default.useMemo(() => {
       return (invoicesQuery.data ?? []).flatMap((entry) => {
         if (entry.status !== "success" || !entry.result) return [];

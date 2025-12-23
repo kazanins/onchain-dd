@@ -7,6 +7,8 @@ contract InvoiceRegistry {
     Paid
   }
 
+  address public owner;
+
   struct Invoice {
     uint256 number;
     bytes32 invoiceId;
@@ -30,6 +32,16 @@ contract InvoiceRegistry {
     uint256 dueDate,
     bytes32 invoiceId
   );
+  event InvoicePaid(uint256 indexed number);
+
+  modifier onlyOwner() {
+    require(msg.sender == owner, "not owner");
+    _;
+  }
+
+  constructor() {
+    owner = msg.sender;
+  }
 
   function createInvoice(
     address payee,
@@ -65,5 +77,13 @@ contract InvoiceRegistry {
 
   function getInvoicesByPayee(address payee) external view returns (uint256[] memory) {
     return invoicesByPayee[payee];
+  }
+
+  function markPaid(uint256 number) external onlyOwner {
+    Invoice storage invoice = invoices[number];
+    require(invoice.number != 0, "invoice not found");
+    require(invoice.status == Status.Open, "already paid");
+    invoice.status = Status.Paid;
+    emit InvoicePaid(number);
   }
 }

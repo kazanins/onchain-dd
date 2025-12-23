@@ -91,6 +91,13 @@ const invoiceRegistryAbi = [
     ],
     outputs: [{ name: '', type: 'uint256' }],
   },
+  {
+    type: 'function',
+    name: 'markPaid',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'number', type: 'uint256' }],
+    outputs: [],
+  },
 ] as const
 
 app.post('/api/invoices/create', async (req, res) => {
@@ -127,6 +134,27 @@ app.post('/api/invoices/create', async (req, res) => {
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to create invoice'
+    res.status(500).json({ error: message })
+  }
+})
+
+app.post('/api/invoices/mark-paid', async (req, res) => {
+  try {
+    const number = req.body?.number as string | undefined
+    if (!number) return res.status(400).json({ error: 'Missing invoice number' })
+    const invoiceNumber = BigInt(number)
+
+    const hash = await walletClient.writeContract({
+      address: invoiceRegistryAddress,
+      abi: invoiceRegistryAbi,
+      functionName: 'markPaid',
+      args: [invoiceNumber],
+      feeToken: ALPHA_USD,
+    } as never)
+
+    res.json({ hash })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to mark invoice paid'
     res.status(500).json({ error: message })
   }
 })

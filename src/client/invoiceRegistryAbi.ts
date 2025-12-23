@@ -47,4 +47,11 @@ export const invoiceRegistryAbi = [
     inputs: [],
     outputs: [{ name: '', type: 'uint256' }],
   },
+  {
+    type: 'function',
+    name: 'markPaid',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'number', type: 'uint256' }],
+    outputs: [],
+  },
 ] as const
