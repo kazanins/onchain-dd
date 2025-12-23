@@ -106,6 +106,7 @@ export function App() {
   const [copiedId, setCopiedId] = React.useState<string | null>(null)
   const copyTimerRef = React.useRef<number | null>(null)
   const alphaUsdToken = '0x20c0000000000000000000000000000000000001' as const
+  const explorerBaseUrl = 'https://explorer.tempo.xyz'
   const balanceQuery = Hooks.token.useGetBalance({
     account: account.address,
     token: alphaUsdToken,
@@ -480,32 +481,27 @@ export function App() {
           <h2>Merchant</h2>
           {merchantAddress ? (
             <div className="merchant-header-address">
-              <code>{merchantAddress}</code>
-              <button
-                type="button"
-                onClick={() => handleCopyId(merchantAddress)}
-                title="Copy merchant address"
-                aria-label="Copy merchant address"
-                className={copiedId === merchantAddress ? 'copy-button copied' : 'copy-button'}
+              <span>Merchant&#39;s address:</span>
+              <a
+                href={`${explorerBaseUrl}/address/${merchantAddress}`}
+                target="_blank"
+                rel="noreferrer"
+                className="address-link"
               >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                </svg>
-              </button>
-              <span className={copiedId === merchantAddress ? 'copy-badge show' : 'copy-badge'}>
-                Copied
-              </span>
+                <code>{merchantAddress}</code>
+              </a>
+            </div>
+          ) : null}
+          {invoiceRegistryAddress ? (
+            <div className="merchant-contract-link">
+              <a
+                href={`${explorerBaseUrl}/address/${invoiceRegistryAddress}`}
+                target="_blank"
+                rel="noreferrer"
+                className="address-link"
+              >
+                Invoice contract: <code>{invoiceRegistryAddress}</code>
+              </a>
             </div>
           ) : null}
         </div>

@@ -51696,6 +51696,7 @@ Provided: ${stringify2(envelope)}`);
     const [copiedId, setCopiedId] = import_react16.default.useState(null);
     const copyTimerRef = import_react16.default.useRef(null);
     const alphaUsdToken = "0x20c0000000000000000000000000000000000001";
+    const explorerBaseUrl = "https://explorer.tempo.xyz";
     const balanceQuery = Hooks_exports.token.useGetBalance({
       account: account.address,
       token: alphaUsdToken
@@ -52040,37 +52041,31 @@ Provided: ${stringify2(envelope)}`);
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "merchant-header", children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Merchant" }),
           merchantAddress ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "merchant-header-address", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("code", { children: merchantAddress }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Merchant's address:" }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-              "button",
+              "a",
               {
-                type: "button",
-                onClick: () => handleCopyId(merchantAddress),
-                title: "Copy merchant address",
-                "aria-label": "Copy merchant address",
-                className: copiedId === merchantAddress ? "copy-button copied" : "copy-button",
-                children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-                  "svg",
-                  {
-                    width: "14",
-                    height: "14",
-                    viewBox: "0 0 24 24",
-                    fill: "none",
-                    stroke: "currentColor",
-                    strokeWidth: "2",
-                    strokeLinecap: "round",
-                    strokeLinejoin: "round",
-                    "aria-hidden": "true",
-                    children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("rect", { x: "9", y: "9", width: "13", height: "13", rx: "2", ry: "2" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" })
-                    ]
-                  }
-                )
+                href: `${explorerBaseUrl}/address/${merchantAddress}`,
+                target: "_blank",
+                rel: "noreferrer",
+                className: "address-link",
+                children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("code", { children: merchantAddress })
               }
-            ),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: copiedId === merchantAddress ? "copy-badge show" : "copy-badge", children: "Copied" })
-          ] }) : null
+            )
+          ] }) : null,
+          invoiceRegistryAddress ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "merchant-contract-link", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+            "a",
+            {
+              href: `${explorerBaseUrl}/address/${invoiceRegistryAddress}`,
+              target: "_blank",
+              rel: "noreferrer",
+              className: "address-link",
+              children: [
+                "Invoice contract: ",
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("code", { children: invoiceRegistryAddress })
+              ]
+            }
+          ) }) : null
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "card", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "row", style: { justifyContent: "space-between" }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "row", children: [
