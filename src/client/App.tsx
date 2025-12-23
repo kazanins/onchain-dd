@@ -107,8 +107,6 @@ export function App() {
   const lastTxRef = React.useRef<string | null>(null)
   const [createTxHash, setCreateTxHash] = React.useState<`0x${string}` | null>(null)
   const [isCreatingInvoice, setIsCreatingInvoice] = React.useState(false)
-  const [pendingInvoiceNumber, setPendingInvoiceNumber] = React.useState<bigint | null>(null)
-  const [markPaidTxHash, setMarkPaidTxHash] = React.useState<`0x${string}` | null>(null)
 
   const handleCopyId = React.useCallback((id: string) => {
     navigator.clipboard?.writeText(id)
@@ -138,15 +136,15 @@ export function App() {
   }, [balanceQuery])
 
   const handlePayInvoice = React.useCallback((inv: OnchainInvoice) => {
-    setPendingInvoiceNumber(inv.number)
+    if (!merchantAddress) return
     sendPayment.mutate({
       amount: inv.amount,
-      to: inv.payee,
+      to: merchantAddress,
       token: alphaUsdToken,
       feeToken: alphaUsdToken,
       memo: inv.invoiceId,
     })
-  }, [alphaUsdToken, sendPayment])
+  }, [alphaUsdToken, merchantAddress, sendPayment])
 
   const invoiceNumbersQuery = useReadContract({
     address: invoiceRegistryAddress,
@@ -176,28 +174,9 @@ export function App() {
     if (tx && tx !== lastTxRef.current) {
       lastTxRef.current = tx
       handlePaymentSuccess(String(tx))
-      if (pendingInvoiceNumber) {
-        fetch('/api/invoices/mark-paid', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            number: pendingInvoiceNumber.toString(),
-            txHash: tx,
-          }),
-        })
-          .then((r) => r.json())
-          .then((data) => {
-            if (data?.hash) setMarkPaidTxHash(data.hash as `0x${string}`)
-          })
-          .catch(console.error)
-          .finally(() => setPendingInvoiceNumber(null))
-      }
     }
   }, [
     handlePaymentSuccess,
-    invoiceNumbersQuery,
-    invoicesQuery,
-    pendingInvoiceNumber,
     sendPayment.data?.receipt?.transactionHash,
   ])
 
@@ -229,10 +208,6 @@ export function App() {
     hash: createTxHash ?? undefined,
     query: { enabled: Boolean(createTxHash) },
   })
-  const markPaidReceipt = useWaitForTransactionReceipt({
-    hash: markPaidTxHash ?? undefined,
-    query: { enabled: Boolean(markPaidTxHash) },
-  })
 
   React.useEffect(() => {
     if (createReceipt.isSuccess) {
@@ -247,13 +222,6 @@ export function App() {
     }
   }, [createReceipt.isSuccess])
 
-  React.useEffect(() => {
-    if (markPaidReceipt.isSuccess) {
-      invoiceNumbersQuery.refetch()
-      invoicesQuery.refetch()
-      setMarkPaidTxHash(null)
-    }
-  }, [invoiceNumbersQuery, invoicesQuery, markPaidReceipt.isSuccess])
 
   const handleGenerateInvoice = React.useCallback(async () => {
     if (!account.address) return

@@ -50,7 +50,7 @@ contract InvoiceRegistry {
     uint256 amount,
     uint256 dueDate,
     bytes32 invoiceId
-  ) external returns (uint256) {
+  ) external onlyOwner returns (uint256) {
     require(payee != address(0), "payee=0");
     require(currency != address(0), "currency=0");
     require(amount > 0, "amount=0");

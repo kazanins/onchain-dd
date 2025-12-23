@@ -51703,8 +51703,6 @@ Provided: ${stringify2(envelope)}`);
     const lastTxRef = import_react16.default.useRef(null);
     const [createTxHash, setCreateTxHash] = import_react16.default.useState(null);
     const [isCreatingInvoice, setIsCreatingInvoice] = import_react16.default.useState(false);
-    const [pendingInvoiceNumber, setPendingInvoiceNumber] = import_react16.default.useState(null);
-    const [markPaidTxHash, setMarkPaidTxHash] = import_react16.default.useState(null);
     const handleCopyId = import_react16.default.useCallback((id) => {
       navigator.clipboard?.writeText(id);
       setCopiedId(id);
@@ -51730,15 +51728,15 @@ Provided: ${stringify2(envelope)}`);
       }, 6e3);
     }, [balanceQuery]);
     const handlePayInvoice = import_react16.default.useCallback((inv) => {
-      setPendingInvoiceNumber(inv.number);
+      if (!merchantAddress) return;
       sendPayment.mutate({
         amount: inv.amount,
-        to: inv.payee,
+        to: merchantAddress,
         token: alphaUsdToken,
         feeToken: alphaUsdToken,
         memo: inv.invoiceId
       });
-    }, [alphaUsdToken, sendPayment]);
+    }, [alphaUsdToken, merchantAddress, sendPayment]);
     const invoiceNumbersQuery = useReadContract({
       address: invoiceRegistryAddress,
       abi: invoiceRegistryAbi,
@@ -51762,24 +51760,9 @@ Provided: ${stringify2(envelope)}`);
       if (tx && tx !== lastTxRef.current) {
         lastTxRef.current = tx;
         handlePaymentSuccess(String(tx));
-        if (pendingInvoiceNumber) {
-          fetch("/api/invoices/mark-paid", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              number: pendingInvoiceNumber.toString(),
-              txHash: tx
-            })
-          }).then((r) => r.json()).then((data) => {
-            if (data?.hash) setMarkPaidTxHash(data.hash);
-          }).catch(console.error).finally(() => setPendingInvoiceNumber(null));
-        }
       }
     }, [
       handlePaymentSuccess,
-      invoiceNumbersQuery,
-      invoicesQuery,
-      pendingInvoiceNumber,
       sendPayment.data?.receipt?.transactionHash
     ]);
     const onchainInvoices = import_react16.default.useMemo(() => {
@@ -51797,10 +51780,6 @@ Provided: ${stringify2(envelope)}`);
       hash: createTxHash ?? void 0,
       query: { enabled: Boolean(createTxHash) }
     });
-    const markPaidReceipt = useWaitForTransactionReceipt({
-      hash: markPaidTxHash ?? void 0,
-      query: { enabled: Boolean(markPaidTxHash) }
-    });
     import_react16.default.useEffect(() => {
       if (createReceipt.isSuccess) {
         invoiceNumbersQuery.refetch();
@@ -51812,13 +51791,6 @@ Provided: ${stringify2(envelope)}`);
         setCreateTxHash(null);
       }
     }, [createReceipt.isSuccess]);
-    import_react16.default.useEffect(() => {
-      if (markPaidReceipt.isSuccess) {
-        invoiceNumbersQuery.refetch();
-        invoicesQuery.refetch();
-        setMarkPaidTxHash(null);
-      }
-    }, [invoiceNumbersQuery, invoicesQuery, markPaidReceipt.isSuccess]);
     const handleGenerateInvoice = import_react16.default.useCallback(async () => {
       if (!account.address) return;
       setIsCreatingInvoice(true);

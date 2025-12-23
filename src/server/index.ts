@@ -136,6 +136,8 @@ const transferWithMemoEvent = {
   ],
 } as const
 
+const LOOKBACK_BLOCKS = 5000n
+
 app.post('/api/invoices/create', async (req, res) => {
   try {
     const payee = req.body?.payee as `0x${string}` | undefined
@@ -235,6 +237,68 @@ app.post('/api/invoices/mark-paid', async (req, res) => {
     res.json({ hash })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to mark invoice paid'
+    res.status(500).json({ error: message })
+  }
+})
+
+app.get('/api/cron/mark-paid', async (_req, res) => {
+  try {
+    const latestBlock = await client.getBlockNumber()
+    const fromBlock = latestBlock > LOOKBACK_BLOCKS ? latestBlock - LOOKBACK_BLOCKS : 0n
+
+    const logs = await client.getLogs({
+      address: ALPHA_USD,
+      event: transferWithMemoEvent,
+      fromBlock,
+      toBlock: latestBlock,
+    })
+
+    const memoIndex = new Map<string, `0x${string}`>()
+    for (const log of logs) {
+      const memo = (log.args?.memo as `0x${string}` | undefined) ?? null
+      const to = (log.args?.to as `0x${string}` | undefined) ?? null
+      if (!memo || !to) continue
+      memoIndex.set(`${to.toLowerCase()}:${memo.toLowerCase()}`, log.transactionHash)
+    }
+
+    const nextNumber = (await client.readContract({
+      address: invoiceRegistryAddress,
+      abi: invoiceRegistryAbi,
+      functionName: 'nextInvoiceNumber',
+    } as never)) as bigint
+
+    let marked = 0
+    for (let number = 1n; number < nextNumber; number++) {
+      const invoice = (await client.readContract({
+        address: invoiceRegistryAddress,
+        abi: invoiceRegistryAbi,
+        functionName: 'getInvoice',
+        args: [number],
+      } as never)) as {
+        invoiceId: `0x${string}`
+        payee: `0x${string}`
+        status: number
+        paidTxHash: `0x${string}`
+      }
+
+      if (invoice.status !== 0) continue
+      const key = `${invoice.payee.toLowerCase()}:${invoice.invoiceId.toLowerCase()}`
+      const txHash = memoIndex.get(key)
+      if (!txHash) continue
+
+      await walletClient.writeContract({
+        address: invoiceRegistryAddress,
+        abi: invoiceRegistryAbi,
+        functionName: 'markPaid',
+        args: [number, txHash],
+        feeToken: ALPHA_USD,
+      } as never)
+      marked++
+    }
+
+    res.json({ marked })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Cron failed'
     res.status(500).json({ error: message })
   }
 })
