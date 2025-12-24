@@ -11,65 +11,6 @@ function TouchIdIcon() {
   )
 }
 
-function FaucetCard(props: {
-  address?: `0x${string}`
-  onSuccess?: () => void
-  isRefreshing?: boolean
-}) {
-  const [isSending, setIsSending] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
-  const [success, setSuccess] = React.useState<string | null>(null)
-
-  async function requestFunds() {
-    if (!props.address) return
-    setIsSending(true)
-    setError(null)
-    setSuccess(null)
-    try {
-      const res = await fetch('https://rpc.testnet.tempo.xyz', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'tempo_fundAddress',
-          params: [props.address],
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok || data?.error) {
-        throw new Error(data?.error?.message ?? `Faucet request failed (${res.status})`)
-      }
-      setSuccess('Faucet request sent. Funds should arrive shortly.')
-      props.onSuccess?.()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Faucet request failed')
-    } finally {
-      setIsSending(false)
-    }
-  }
-
-  return (
-    <div className="phone-card">
-      <div className="row" style={{ justifyContent: 'space-between' }}>
-        <b>Testnet Faucet</b>
-        <button className="btn btn-outline" disabled={!props.address || isSending} onClick={requestFunds}>
-          {isSending ? 'Requesting…' : 'Add test funds'}
-        </button>
-      </div>
-      {error ? (
-        <div className="muted" style={{ color: 'crimson', marginTop: 8 }}>{error}</div>
-      ) : null}
-      {success ? (
-        <div className="muted" style={{ color: 'green', marginTop: 8 }}>{success}</div>
-      ) : null}
-      {props.isRefreshing ? (
-        <div className="muted" style={{ color: '#5b6b8f', marginTop: 6 }}>Checking balance…</div>
-      ) : null}
-    </div>
-  )
-}
-
 type OnchainInvoice = {
   number: bigint
   invoiceId: `0x${string}`
@@ -79,6 +20,13 @@ type OnchainInvoice = {
   dueDate: bigint
   status: number
   paidTxHash: `0x${string}`
+}
+
+type TransferItem = {
+  direction: 'incoming' | 'outgoing'
+  memo: string
+  amount: string
+  txHash: `0x${string}`
 }
 
 function decodeInvoiceId(invoiceId: `0x${string}`) {
@@ -103,6 +51,11 @@ export function App() {
   const disconnect = useDisconnect()
   const [paymentNotice, setPaymentNotice] = React.useState<string | null>(null)
   const paymentTimerRef = React.useRef<number | null>(null)
+  const [fundingNotice, setFundingNotice] = React.useState<{
+    kind: 'success' | 'error'
+    message: string
+  } | null>(null)
+  const fundingTimerRef = React.useRef<number | null>(null)
   const [copiedId, setCopiedId] = React.useState<string | null>(null)
   const copyTimerRef = React.useRef<number | null>(null)
   const alphaUsdToken = '0x20c0000000000000000000000000000000000001' as const
@@ -112,13 +65,15 @@ export function App() {
     token: alphaUsdToken,
   })
   const balancePollRef = React.useRef<number | null>(null)
-  const [isBalanceRefreshing, setIsBalanceRefreshing] = React.useState(false)
   const sendPayment = Hooks.token.useTransferSync()
   const lastTxRef = React.useRef<string | null>(null)
   const [createTxHash, setCreateTxHash] = React.useState<`0x${string}` | null>(null)
   const [isCreatingInvoice, setIsCreatingInvoice] = React.useState(false)
   const [isRefreshingMobile, setIsRefreshingMobile] = React.useState(false)
   const [isRefreshingMerchant, setIsRefreshingMerchant] = React.useState(false)
+  const [isAutopayEnabled, setIsAutopayEnabled] = React.useState(false)
+  const [transactions, setTransactions] = React.useState<TransferItem[]>([])
+  const signupRequestedRef = React.useRef(false)
 
   const refreshBalanceAfterFaucet = React.useCallback(() => {
     const startingBalance = balanceQuery.data ?? 0n
@@ -130,7 +85,6 @@ export function App() {
       window.clearTimeout(balancePollRef.current)
       balancePollRef.current = null
     }
-    setIsBalanceRefreshing(true)
 
     const poll = async () => {
       attempts += 1
@@ -138,7 +92,6 @@ export function App() {
       const nextBalance = result.data ?? startingBalance
       if (nextBalance > startingBalance || attempts >= maxAttempts) {
         balancePollRef.current = null
-        setIsBalanceRefreshing(false)
         return
       }
       balancePollRef.current = window.setTimeout(poll, delayMs)
@@ -153,7 +106,10 @@ export function App() {
         window.clearTimeout(balancePollRef.current)
         balancePollRef.current = null
       }
-      setIsBalanceRefreshing(false)
+      if (fundingTimerRef.current) {
+        window.clearTimeout(fundingTimerRef.current)
+        fundingTimerRef.current = null
+      }
     }
   }, [])
 
@@ -218,15 +174,45 @@ export function App() {
     query: { enabled: invoiceContracts.length > 0 },
   })
 
+  const refreshTransactions = React.useCallback(async () => {
+    if (!account.address) return
+    const response = await fetch(`/api/transactions?address=${account.address}`)
+    const data = await response.json()
+    if (!response.ok) {
+      throw new Error(data?.error ?? 'Failed to load transactions')
+    }
+    const next = (data.transfers ?? []).map((tx: {
+      from: `0x${string}`
+      to: `0x${string}`
+      memo: `0x${string}`
+      value: string
+      txHash: `0x${string}`
+    }) => {
+      const isIncoming = tx.to?.toLowerCase() === account.address?.toLowerCase()
+      const amount = Number(formatUnits(BigInt(tx.value), 6)).toFixed(2)
+      return {
+        direction: isIncoming ? 'incoming' : 'outgoing',
+        memo: decodeInvoiceId(tx.memo),
+        amount,
+        txHash: tx.txHash,
+      }
+    })
+    setTransactions(next)
+  }, [account.address])
+
   const refreshMobileInvoices = React.useCallback(async () => {
     if (!account.address) return
     setIsRefreshingMobile(true)
     try {
-      await Promise.all([invoiceNumbersQuery.refetch(), invoicesQuery.refetch()])
+      await Promise.allSettled([
+        invoiceNumbersQuery.refetch(),
+        invoicesQuery.refetch(),
+        refreshTransactions(),
+      ])
     } finally {
       window.setTimeout(() => setIsRefreshingMobile(false), 400)
     }
-  }, [account.address, invoiceNumbersQuery, invoicesQuery])
+  }, [account.address, invoiceNumbersQuery, invoicesQuery, refreshTransactions])
 
   const refreshMerchantInvoices = React.useCallback(async () => {
     setIsRefreshingMerchant(true)
@@ -237,6 +223,14 @@ export function App() {
     }
     await refreshMobileInvoices()
   }, [refreshMobileInvoices])
+
+  React.useEffect(() => {
+    if (!account.address) {
+      setTransactions([])
+      return
+    }
+    refreshTransactions()
+  }, [account.address, refreshTransactions])
 
   React.useEffect(() => {
     const tx = sendPayment.data?.receipt?.transactionHash
@@ -328,6 +322,41 @@ export function App() {
       .catch(console.error)
   }, [])
 
+  React.useEffect(() => {
+    if (!account.address || !signupRequestedRef.current) return
+    signupRequestedRef.current = false
+    fetch('https://rpc.testnet.tempo.xyz', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tempo_fundAddress',
+        params: [account.address],
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.error) throw new Error(data.error?.message ?? 'Faucet request failed')
+        refreshBalanceAfterFaucet()
+        setFundingNotice({ kind: 'success', message: 'Requesting faucet funding…' })
+        if (fundingTimerRef.current) window.clearTimeout(fundingTimerRef.current)
+        fundingTimerRef.current = window.setTimeout(() => {
+          setFundingNotice(null)
+          fundingTimerRef.current = null
+        }, 3000)
+      })
+      .catch((err) => {
+        console.error('Auto-fund failed', err)
+        setFundingNotice({ kind: 'error', message: 'Funding failed. Please try again later.' })
+        if (fundingTimerRef.current) window.clearTimeout(fundingTimerRef.current)
+        fundingTimerRef.current = window.setTimeout(() => {
+          setFundingNotice(null)
+          fundingTimerRef.current = null
+        }, 3000)
+      })
+  }, [account.address, refreshBalanceAfterFaucet])
+
   const formattedBalance = React.useMemo(() => {
     const raw = Number(formatUnits(balanceQuery.data ?? 0n, 6))
     return Number.isFinite(raw)
@@ -341,16 +370,25 @@ export function App() {
       <div className="pane">
         <div className="phone-shell">
           <div className="phone-screen">
-            {paymentNotice ? (
-              <div className="notice">
-                Payment sent:{' '}
-                <a
-                  href={`https://explorer.tempo.xyz/tx/${paymentNotice}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {paymentNotice.slice(0, 10)}…
-                </a>
+            {paymentNotice || fundingNotice ? (
+              <div className="notice-stack">
+                {paymentNotice ? (
+                  <div className="notice">
+                    Payment sent:{' '}
+                    <a
+                      href={`https://explorer.tempo.xyz/tx/${paymentNotice}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {paymentNotice.slice(0, 10)}…
+                    </a>
+                  </div>
+                ) : null}
+                {fundingNotice ? (
+                  <div className={fundingNotice.kind === 'error' ? 'notice notice-error' : 'notice'}>
+                    {fundingNotice.message}
+                  </div>
+                ) : null}
               </div>
             ) : null}
             {!account.address ? (
@@ -359,17 +397,23 @@ export function App() {
                 <div className="row">
                   <button
                     className="btn btn-primary"
-                    onClick={() => connect.connect({ connector })}
+                    onClick={() => {
+                      signupRequestedRef.current = false
+                      connect.connect({ connector })
+                    }}
                   >
                     Sign in
                   </button>
                   <button
                     className="btn btn-outline"
                     onClick={() =>
-                    connect.connect({
-                      connector,
-                      capabilities: { type: 'sign-up' },
-                    } as never)
+                    {
+                      signupRequestedRef.current = true
+                      connect.connect({
+                        connector,
+                        capabilities: { type: 'sign-up' },
+                      } as never)
+                    }
                     }
                   >
                     Sign up
@@ -411,11 +455,6 @@ export function App() {
                 <div className="balance-token">AlphaUSD</div>
                 <div className="balance-address">{account.address}</div>
               </div>
-              <FaucetCard
-                address={account.address}
-                onSuccess={refreshBalanceAfterFaucet}
-                isRefreshing={isBalanceRefreshing}
-              />
               <div className="phone-card">
                 <div className="row" style={{ justifyContent: 'space-between' }}>
                   <div className="row">
@@ -442,7 +481,18 @@ export function App() {
                       </svg>
                     </button>
                   </div>
-                  {sendPayment.isPending ? <span className="muted">Paying…</span> : null}
+                  <div className="invoice-header-actions">
+                    <label className="toggle">
+                      <span>Autopay</span>
+                      <input
+                        type="checkbox"
+                        checked={isAutopayEnabled}
+                        onChange={(event) => setIsAutopayEnabled(event.target.checked)}
+                      />
+                      <span className="toggle-slider" aria-hidden="true"></span>
+                    </label>
+                    {sendPayment.isPending ? <span className="muted">Paying…</span> : null}
+                  </div>
                 </div>
                 <div style={{ marginTop: 8, display: 'grid', gap: 10 }}>
                   {openInvoices.length === 0 ? (
@@ -457,13 +507,93 @@ export function App() {
                           </div>
                           <div className="muted">ID: <code>{decodeInvoiceId(inv.invoiceId)}</code></div>
                         </div>
-                        <button
-                          className="btn btn-primary"
-                          disabled={sendPayment.isPending}
-                          onClick={() => handlePayInvoice(inv)}
-                        >
-                          Pay
-                        </button>
+                        {isAutopayEnabled ? (
+                          <div className="scheduled-pill" aria-label="Scheduled">
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              <circle cx="12" cy="12" r="9"></circle>
+                              <path d="M12 7v5l3 3"></path>
+                            </svg>
+                          </div>
+                        ) : (
+                          <button
+                            className="btn btn-primary"
+                            disabled={sendPayment.isPending}
+                            onClick={() => handlePayInvoice(inv)}
+                          >
+                            Pay
+                          </button>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+              <div className="phone-card">
+                <div className="row" style={{ justifyContent: 'space-between' }}>
+                  <b>Transactions</b>
+                </div>
+                <div className="transactions-list">
+                  {transactions.length === 0 ? (
+                    <div className="muted">No recent transfers.</div>
+                  ) : (
+                    transactions.map((tx) => (
+                      <div key={tx.txHash} className="transaction-row">
+                        <div className={`transaction-icon ${tx.direction}`}>
+                          {tx.direction === 'incoming' ? (
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              <path d="M12 5v14" />
+                              <path d="m19 12-7 7-7-7" />
+                            </svg>
+                          ) : (
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              <path d="M12 19V5" />
+                              <path d="m5 12 7-7 7 7" />
+                            </svg>
+                          )}
+                        </div>
+                        <div className="transaction-meta">
+                          <a
+                            href={`${explorerBaseUrl}/tx/${tx.txHash}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="transaction-memo"
+                          >
+                            {tx.memo || 'Memo'}
+                          </a>
+                        </div>
+                        <div className="transaction-amount">
+                          {tx.direction === 'incoming' ? '+' : '-'}${tx.amount}
+                        </div>
                       </div>
                     ))
                   )}

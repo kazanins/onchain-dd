@@ -309,6 +309,46 @@ app.get('/api/invoices/refresh-status', async (_req, res) => {
   }
 })
 
+app.get('/api/transactions', async (req, res) => {
+  try {
+    const address = req.query.address as `0x${string}` | undefined
+    if (!address) return res.status(400).json({ error: 'Missing address' })
+
+    const latestBlock = await client.getBlockNumber()
+    const fromBlock = latestBlock > LOOKBACK_BLOCKS ? latestBlock - LOOKBACK_BLOCKS : 0n
+
+    const logs = await client.getLogs({
+      address: ALPHA_USD,
+      event: transferWithMemoEvent,
+      fromBlock,
+      toBlock: latestBlock,
+    })
+
+    const normalized = address.toLowerCase()
+    const transfers = logs
+      .filter((log) => {
+        const from = log.args?.from as `0x${string}` | undefined
+        const to = log.args?.to as `0x${string}` | undefined
+        if (!from || !to) return false
+        return from.toLowerCase() === normalized || to.toLowerCase() === normalized
+      })
+      .sort((a, b) => Number((b.blockNumber ?? 0n) - (a.blockNumber ?? 0n)))
+      .slice(0, 3)
+      .map((log) => ({
+        from: log.args?.from as `0x${string}`,
+        to: log.args?.to as `0x${string}`,
+        memo: log.args?.memo as `0x${string}`,
+        value: (log.args?.value as bigint).toString(),
+        txHash: log.transactionHash as `0x${string}`,
+      }))
+
+    res.json({ transfers })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to load transactions'
+    res.status(500).json({ error: message })
+  }
+})
+
 app.get('/api/events', (req, res) => {
   // Server-Sent Events
   res.setHeader('Content-Type', 'text/event-stream')

@@ -51632,48 +51632,6 @@ Provided: ${stringify2(envelope)}`);
   function TouchIdIcon() {
     return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("img", { className: "touchid-image", src: "/assets/touchid.svg", alt: "Touch ID" });
   }
-  function FaucetCard(props) {
-    const [isSending, setIsSending] = import_react16.default.useState(false);
-    const [error, setError] = import_react16.default.useState(null);
-    const [success, setSuccess] = import_react16.default.useState(null);
-    async function requestFunds() {
-      if (!props.address) return;
-      setIsSending(true);
-      setError(null);
-      setSuccess(null);
-      try {
-        const res = await fetch("https://rpc.testnet.tempo.xyz", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            jsonrpc: "2.0",
-            id: 1,
-            method: "tempo_fundAddress",
-            params: [props.address]
-          })
-        });
-        const data = await res.json();
-        if (!res.ok || data?.error) {
-          throw new Error(data?.error?.message ?? `Faucet request failed (${res.status})`);
-        }
-        setSuccess("Faucet request sent. Funds should arrive shortly.");
-        props.onSuccess?.();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Faucet request failed");
-      } finally {
-        setIsSending(false);
-      }
-    }
-    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "phone-card", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "row", style: { justifyContent: "space-between" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Testnet Faucet" }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { className: "btn btn-outline", disabled: !props.address || isSending, onClick: requestFunds, children: isSending ? "Requesting\u2026" : "Add test funds" })
-      ] }),
-      error ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "muted", style: { color: "crimson", marginTop: 8 }, children: error }) : null,
-      success ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "muted", style: { color: "green", marginTop: 8 }, children: success }) : null,
-      props.isRefreshing ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "muted", style: { color: "#5b6b8f", marginTop: 6 }, children: "Checking balance\u2026" }) : null
-    ] });
-  }
   function decodeInvoiceId(invoiceId) {
     return hexToString(invoiceId).replace(/\u0000/g, "");
   }
@@ -51693,6 +51651,8 @@ Provided: ${stringify2(envelope)}`);
     const disconnect2 = useDisconnect();
     const [paymentNotice, setPaymentNotice] = import_react16.default.useState(null);
     const paymentTimerRef = import_react16.default.useRef(null);
+    const [fundingNotice, setFundingNotice] = import_react16.default.useState(null);
+    const fundingTimerRef = import_react16.default.useRef(null);
     const [copiedId, setCopiedId] = import_react16.default.useState(null);
     const copyTimerRef = import_react16.default.useRef(null);
     const alphaUsdToken = "0x20c0000000000000000000000000000000000001";
@@ -51702,13 +51662,15 @@ Provided: ${stringify2(envelope)}`);
       token: alphaUsdToken
     });
     const balancePollRef = import_react16.default.useRef(null);
-    const [isBalanceRefreshing, setIsBalanceRefreshing] = import_react16.default.useState(false);
     const sendPayment = Hooks_exports.token.useTransferSync();
     const lastTxRef = import_react16.default.useRef(null);
     const [createTxHash, setCreateTxHash] = import_react16.default.useState(null);
     const [isCreatingInvoice, setIsCreatingInvoice] = import_react16.default.useState(false);
     const [isRefreshingMobile, setIsRefreshingMobile] = import_react16.default.useState(false);
     const [isRefreshingMerchant, setIsRefreshingMerchant] = import_react16.default.useState(false);
+    const [isAutopayEnabled, setIsAutopayEnabled] = import_react16.default.useState(false);
+    const [transactions, setTransactions] = import_react16.default.useState([]);
+    const signupRequestedRef = import_react16.default.useRef(false);
     const refreshBalanceAfterFaucet = import_react16.default.useCallback(() => {
       const startingBalance = balanceQuery.data ?? 0n;
       const maxAttempts = 20;
@@ -51718,14 +51680,12 @@ Provided: ${stringify2(envelope)}`);
         window.clearTimeout(balancePollRef.current);
         balancePollRef.current = null;
       }
-      setIsBalanceRefreshing(true);
       const poll2 = async () => {
         attempts += 1;
         const result = await balanceQuery.refetch();
         const nextBalance = result.data ?? startingBalance;
         if (nextBalance > startingBalance || attempts >= maxAttempts) {
           balancePollRef.current = null;
-          setIsBalanceRefreshing(false);
           return;
         }
         balancePollRef.current = window.setTimeout(poll2, delayMs);
@@ -51738,7 +51698,10 @@ Provided: ${stringify2(envelope)}`);
           window.clearTimeout(balancePollRef.current);
           balancePollRef.current = null;
         }
-        setIsBalanceRefreshing(false);
+        if (fundingTimerRef.current) {
+          window.clearTimeout(fundingTimerRef.current);
+          fundingTimerRef.current = null;
+        }
       };
     }, []);
     const handleCopyId = import_react16.default.useCallback((id) => {
@@ -51793,15 +51756,38 @@ Provided: ${stringify2(envelope)}`);
       contracts: invoiceContracts,
       query: { enabled: invoiceContracts.length > 0 }
     });
+    const refreshTransactions = import_react16.default.useCallback(async () => {
+      if (!account.address) return;
+      const response = await fetch(`/api/transactions?address=${account.address}`);
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Failed to load transactions");
+      }
+      const next = (data.transfers ?? []).map((tx) => {
+        const isIncoming = tx.to?.toLowerCase() === account.address?.toLowerCase();
+        const amount = Number(formatUnits(BigInt(tx.value), 6)).toFixed(2);
+        return {
+          direction: isIncoming ? "incoming" : "outgoing",
+          memo: decodeInvoiceId(tx.memo),
+          amount,
+          txHash: tx.txHash
+        };
+      });
+      setTransactions(next);
+    }, [account.address]);
     const refreshMobileInvoices = import_react16.default.useCallback(async () => {
       if (!account.address) return;
       setIsRefreshingMobile(true);
       try {
-        await Promise.all([invoiceNumbersQuery.refetch(), invoicesQuery.refetch()]);
+        await Promise.allSettled([
+          invoiceNumbersQuery.refetch(),
+          invoicesQuery.refetch(),
+          refreshTransactions()
+        ]);
       } finally {
         window.setTimeout(() => setIsRefreshingMobile(false), 400);
       }
-    }, [account.address, invoiceNumbersQuery, invoicesQuery]);
+    }, [account.address, invoiceNumbersQuery, invoicesQuery, refreshTransactions]);
     const refreshMerchantInvoices = import_react16.default.useCallback(async () => {
       setIsRefreshingMerchant(true);
       try {
@@ -51811,6 +51797,13 @@ Provided: ${stringify2(envelope)}`);
       }
       await refreshMobileInvoices();
     }, [refreshMobileInvoices]);
+    import_react16.default.useEffect(() => {
+      if (!account.address) {
+        setTransactions([]);
+        return;
+      }
+      refreshTransactions();
+    }, [account.address, refreshTransactions]);
     import_react16.default.useEffect(() => {
       const tx = sendPayment.data?.receipt?.transactionHash;
       if (tx && tx !== lastTxRef.current) {
@@ -51879,27 +51872,61 @@ Provided: ${stringify2(envelope)}`);
         setInvoiceRegistryAddress(c.invoiceRegistryAddress);
       }).catch(console.error);
     }, []);
+    import_react16.default.useEffect(() => {
+      if (!account.address || !signupRequestedRef.current) return;
+      signupRequestedRef.current = false;
+      fetch("https://rpc.testnet.tempo.xyz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tempo_fundAddress",
+          params: [account.address]
+        })
+      }).then((res) => res.json()).then((data) => {
+        if (data?.error) throw new Error(data.error?.message ?? "Faucet request failed");
+        refreshBalanceAfterFaucet();
+        setFundingNotice({ kind: "success", message: "Requesting faucet funding\u2026" });
+        if (fundingTimerRef.current) window.clearTimeout(fundingTimerRef.current);
+        fundingTimerRef.current = window.setTimeout(() => {
+          setFundingNotice(null);
+          fundingTimerRef.current = null;
+        }, 3e3);
+      }).catch((err) => {
+        console.error("Auto-fund failed", err);
+        setFundingNotice({ kind: "error", message: "Funding failed. Please try again later." });
+        if (fundingTimerRef.current) window.clearTimeout(fundingTimerRef.current);
+        fundingTimerRef.current = window.setTimeout(() => {
+          setFundingNotice(null);
+          fundingTimerRef.current = null;
+        }, 3e3);
+      });
+    }, [account.address, refreshBalanceAfterFaucet]);
     const formattedBalance = import_react16.default.useMemo(() => {
       const raw = Number(formatUnits(balanceQuery.data ?? 0n, 6));
       return Number.isFinite(raw) ? Math.round(raw).toLocaleString("en-US") : "0";
     }, [balanceQuery.data]);
     return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wrap", children: [
       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "pane", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "phone-shell", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "phone-screen", children: [
-        paymentNotice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "notice", children: [
-          "Payment sent:",
-          " ",
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-            "a",
-            {
-              href: `https://explorer.tempo.xyz/tx/${paymentNotice}`,
-              target: "_blank",
-              rel: "noreferrer",
-              children: [
-                paymentNotice.slice(0, 10),
-                "\u2026"
-              ]
-            }
-          )
+        paymentNotice || fundingNotice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "notice-stack", children: [
+          paymentNotice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "notice", children: [
+            "Payment sent:",
+            " ",
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+              "a",
+              {
+                href: `https://explorer.tempo.xyz/tx/${paymentNotice}`,
+                target: "_blank",
+                rel: "noreferrer",
+                children: [
+                  paymentNotice.slice(0, 10),
+                  "\u2026"
+                ]
+              }
+            )
+          ] }) : null,
+          fundingNotice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: fundingNotice.kind === "error" ? "notice notice-error" : "notice", children: fundingNotice.message }) : null
         ] }) : null,
         !account.address ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "auth-screen", children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(TouchIdIcon, {}),
@@ -51908,7 +51935,10 @@ Provided: ${stringify2(envelope)}`);
               "button",
               {
                 className: "btn btn-primary",
-                onClick: () => connect2.connect({ connector }),
+                onClick: () => {
+                  signupRequestedRef.current = false;
+                  connect2.connect({ connector });
+                },
                 children: "Sign in"
               }
             ),
@@ -51916,10 +51946,13 @@ Provided: ${stringify2(envelope)}`);
               "button",
               {
                 className: "btn btn-outline",
-                onClick: () => connect2.connect({
-                  connector,
-                  capabilities: { type: "sign-up" }
-                }),
+                onClick: () => {
+                  signupRequestedRef.current = true;
+                  connect2.connect({
+                    connector,
+                    capabilities: { type: "sign-up" }
+                  });
+                },
                 children: "Sign up"
               }
             )
@@ -51965,14 +51998,6 @@ Provided: ${stringify2(envelope)}`);
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "balance-token", children: "AlphaUSD" }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "balance-address", children: account.address })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-            FaucetCard,
-            {
-              address: account.address,
-              onSuccess: refreshBalanceAfterFaucet,
-              isRefreshing: isBalanceRefreshing
-            }
-          ),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "phone-card", children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "row", style: { justifyContent: "space-between" }, children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "row", children: [
@@ -52005,7 +52030,21 @@ Provided: ${stringify2(envelope)}`);
                   }
                 )
               ] }),
-              sendPayment.isPending ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "muted", children: "Paying\u2026" }) : null
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "invoice-header-actions", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("label", { className: "toggle", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Autopay" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                    "input",
+                    {
+                      type: "checkbox",
+                      checked: isAutopayEnabled,
+                      onChange: (event) => setIsAutopayEnabled(event.target.checked)
+                    }
+                  ),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "toggle-slider", "aria-hidden": "true" })
+                ] }),
+                sendPayment.isPending ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "muted", children: "Paying\u2026" }) : null
+              ] })
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { marginTop: 8, display: "grid", gap: 10 }, children: openInvoices.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "muted", children: "No open invoices." }) : openInvoices.map((inv) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "invoice-item", children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
@@ -52024,7 +52063,24 @@ Provided: ${stringify2(envelope)}`);
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("code", { children: decodeInvoiceId(inv.invoiceId) })
                 ] })
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+              isAutopayEnabled ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "scheduled-pill", "aria-label": "Scheduled", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+                "svg",
+                {
+                  width: "16",
+                  height: "16",
+                  viewBox: "0 0 24 24",
+                  fill: "none",
+                  stroke: "currentColor",
+                  strokeWidth: "2",
+                  strokeLinecap: "round",
+                  strokeLinejoin: "round",
+                  "aria-hidden": "true",
+                  children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("circle", { cx: "12", cy: "12", r: "9" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M12 7v5l3 3" })
+                  ]
+                }
+              ) }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                 "button",
                 {
                   className: "btn btn-primary",
@@ -52034,6 +52090,61 @@ Provided: ${stringify2(envelope)}`);
                 }
               )
             ] }, String(inv.number))) })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "phone-card", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "row", style: { justifyContent: "space-between" }, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Transactions" }) }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "transactions-list", children: transactions.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "muted", children: "No recent transfers." }) : transactions.map((tx) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "transaction-row", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: `transaction-icon ${tx.direction}`, children: tx.direction === "incoming" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+                "svg",
+                {
+                  width: "14",
+                  height: "14",
+                  viewBox: "0 0 24 24",
+                  fill: "none",
+                  stroke: "currentColor",
+                  strokeWidth: "2",
+                  strokeLinecap: "round",
+                  strokeLinejoin: "round",
+                  "aria-hidden": "true",
+                  children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M12 5v14" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "m19 12-7 7-7-7" })
+                  ]
+                }
+              ) : /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+                "svg",
+                {
+                  width: "14",
+                  height: "14",
+                  viewBox: "0 0 24 24",
+                  fill: "none",
+                  stroke: "currentColor",
+                  strokeWidth: "2",
+                  strokeLinecap: "round",
+                  strokeLinejoin: "round",
+                  "aria-hidden": "true",
+                  children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M12 19V5" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "m5 12 7-7 7 7" })
+                  ]
+                }
+              ) }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "transaction-meta", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                "a",
+                {
+                  href: `${explorerBaseUrl}/tx/${tx.txHash}`,
+                  target: "_blank",
+                  rel: "noreferrer",
+                  className: "transaction-memo",
+                  children: tx.memo || "Memo"
+                }
+              ) }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "transaction-amount", children: [
+                tx.direction === "incoming" ? "+" : "-",
+                "$",
+                tx.amount
+              ] })
+            ] }, tx.txHash)) })
           ] })
         ] })
       ] }) }) }),

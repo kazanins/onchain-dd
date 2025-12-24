@@ -83,6 +83,119 @@
         background: #fff;
         cursor: pointer;
       }
+      .invoice-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: var(--muted);
+        user-select: none;
+      }
+      .toggle input {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .toggle-slider {
+        width: 36px;
+        height: 20px;
+        background: #e3e6ef;
+        border-radius: 999px;
+        position: relative;
+        display: inline-block;
+        transition: background 0.2s ease;
+        box-shadow: inset 0 0 0 1px #d5d9e5;
+      }
+      .toggle-slider::after {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
+        transition: transform 0.2s ease;
+      }
+      .toggle input:checked + .toggle-slider {
+        background: #0f172a;
+        box-shadow: inset 0 0 0 1px #0f172a;
+      }
+      .toggle input:checked + .toggle-slider::after {
+        transform: translateX(16px);
+      }
+      .scheduled-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px dashed #d7dbe7;
+        color: #5b6b8f;
+        font-size: 12px;
+        background: #f7f8fc;
+      }
+      .transactions-list {
+        margin-top: 10px;
+        display: grid;
+        gap: 10px;
+      }
+      .transaction-row {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 14px;
+        border: 1px solid #e7eaf2;
+        background: #fbfcff;
+      }
+      .transaction-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        color: #5b6b8f;
+        background: #f1f4fb;
+      }
+      .transaction-icon.incoming {
+        color: #2563eb;
+        background: #e9f0ff;
+      }
+      .transaction-icon.outgoing {
+        color: #0f172a;
+        background: #eef1f6;
+      }
+      .transaction-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+      .transaction-memo {
+        font-size: 12px;
+        color: #4c5a7a;
+        text-decoration: none;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .transaction-memo:hover {
+        text-decoration: underline;
+      }
+      .transaction-amount {
+        font-size: 12px;
+        font-weight: 600;
+        color: #0f172a;
+      }
       .phone-shell {
         max-width: 380px;
         margin: 8px auto 16px;
@@ -181,6 +294,16 @@
         font-weight: 600;
         border: 1px solid #c8ead5;
         animation: drop 240ms ease;
+      }
+      .notice-stack {
+        display: grid;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .notice-error {
+        background: #fdecec;
+        color: #a51616;
+        border-color: #f7c6c6;
       }
       .card {
         border: 1px solid var(--border);
