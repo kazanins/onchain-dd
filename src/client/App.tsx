@@ -102,6 +102,8 @@ export function App() {
   const signupRequestedRef = React.useRef(false)
   const autopayInFlightRef = React.useRef<Set<string>>(new Set())
   const autopayScheduleTimerRef = React.useRef<number | null>(null)
+  const nextInvoiceNumberRef = React.useRef<bigint | null>(null)
+  const [isAwaitingInvoice, setIsAwaitingInvoice] = React.useState(false)
 
   const refreshBalanceAfterFaucet = React.useCallback(() => {
     const startingBalance = balanceQuery.data ?? 0n
@@ -355,12 +357,6 @@ export function App() {
     })
 
     handlePaymentSuccess(result.receipt.transactionHash)
-    setAutopayNotice({ kind: 'success', message: 'Autopay payment sent.' })
-    if (autopayNoticeTimerRef.current) window.clearTimeout(autopayNoticeTimerRef.current)
-    autopayNoticeTimerRef.current = window.setTimeout(() => {
-      setAutopayNotice(null)
-      autopayNoticeTimerRef.current = null
-    }, 3000)
     await refreshMerchantInvoices()
     await refreshMobileInvoices()
   }, [account.address, alphaUsdToken, handlePaymentSuccess, merchantAddress, refreshMerchantInvoices, refreshMobileInvoices])
@@ -429,6 +425,11 @@ export function App() {
 
     autopayInFlightRef.current.add(String(pending.number))
     setAutopayNotice({ kind: 'success', message: 'Autopay scheduled…' })
+    if (autopayNoticeTimerRef.current) window.clearTimeout(autopayNoticeTimerRef.current)
+    autopayNoticeTimerRef.current = window.setTimeout(() => {
+      setAutopayNotice(null)
+      autopayNoticeTimerRef.current = null
+    }, 3000)
 
     if (autopayScheduleTimerRef.current) window.clearTimeout(autopayScheduleTimerRef.current)
     autopayScheduleTimerRef.current = window.setTimeout(() => {
@@ -464,10 +465,27 @@ export function App() {
     }
   }, [createReceipt.isSuccess])
 
+  React.useEffect(() => {
+    if (!createReceipt.isSuccess) return
+    setIsAwaitingInvoice(true)
+  }, [createReceipt.isSuccess])
+
+  React.useEffect(() => {
+    if (!isAwaitingInvoice) return
+    const target = nextInvoiceNumberRef.current
+    if (target === null) return
+    const created = onchainInvoices.some((inv) => inv.number === target)
+    if (created) {
+      setIsAwaitingInvoice(false)
+      nextInvoiceNumberRef.current = null
+    }
+  }, [isAwaitingInvoice, onchainInvoices])
+
 
   const handleGenerateInvoice = React.useCallback(async () => {
     if (!account.address) return
     setIsCreatingInvoice(true)
+    setIsAwaitingInvoice(true)
     try {
       const r = await fetch('/api/invoices/create', {
         method: 'POST',
@@ -477,8 +495,13 @@ export function App() {
       const data = await r.json()
       if (!r.ok) throw new Error(data?.error ?? 'Failed to create invoice')
       setCreateTxHash(data.hash as `0x${string}`)
+      if (data?.number) {
+        nextInvoiceNumberRef.current = BigInt(data.number)
+      }
     } catch (err) {
       console.error(err)
+      setIsAwaitingInvoice(false)
+      nextInvoiceNumberRef.current = null
     } finally {
       setIsCreatingInvoice(false)
     }
@@ -856,10 +879,10 @@ export function App() {
             </div>
             <button
               className="btn btn-outline"
-              disabled={!account.address || isCreatingInvoice || !invoiceRegistryAddress}
+              disabled={!account.address || isCreatingInvoice || isAwaitingInvoice || !invoiceRegistryAddress}
               onClick={handleGenerateInvoice}
             >
-              {isCreatingInvoice ? 'Generating…' : 'Generate invoice'}
+              {isCreatingInvoice || isAwaitingInvoice ? 'Generating…' : 'Generate invoice'}
             </button>
           </div>
 

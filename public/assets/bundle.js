@@ -56581,6 +56581,8 @@ Provided: ${stringify2(envelope)}`);
     const signupRequestedRef = import_react17.default.useRef(false);
     const autopayInFlightRef = import_react17.default.useRef(/* @__PURE__ */ new Set());
     const autopayScheduleTimerRef = import_react17.default.useRef(null);
+    const nextInvoiceNumberRef = import_react17.default.useRef(null);
+    const [isAwaitingInvoice, setIsAwaitingInvoice] = import_react17.default.useState(false);
     const refreshBalanceAfterFaucet = import_react17.default.useCallback(() => {
       const startingBalance = balanceQuery.data ?? 0n;
       const maxAttempts = 20;
@@ -56804,12 +56806,6 @@ Provided: ${stringify2(envelope)}`);
         feeToken: alphaUsdToken
       });
       handlePaymentSuccess(result.receipt.transactionHash);
-      setAutopayNotice({ kind: "success", message: "Autopay payment sent." });
-      if (autopayNoticeTimerRef.current) window.clearTimeout(autopayNoticeTimerRef.current);
-      autopayNoticeTimerRef.current = window.setTimeout(() => {
-        setAutopayNotice(null);
-        autopayNoticeTimerRef.current = null;
-      }, 3e3);
       await refreshMerchantInvoices();
       await refreshMobileInvoices();
     }, [account.address, alphaUsdToken, handlePaymentSuccess, merchantAddress, refreshMerchantInvoices, refreshMobileInvoices]);
@@ -56860,6 +56856,11 @@ Provided: ${stringify2(envelope)}`);
       if (!pending) return;
       autopayInFlightRef.current.add(String(pending.number));
       setAutopayNotice({ kind: "success", message: "Autopay scheduled\u2026" });
+      if (autopayNoticeTimerRef.current) window.clearTimeout(autopayNoticeTimerRef.current);
+      autopayNoticeTimerRef.current = window.setTimeout(() => {
+        setAutopayNotice(null);
+        autopayNoticeTimerRef.current = null;
+      }, 3e3);
       if (autopayScheduleTimerRef.current) window.clearTimeout(autopayScheduleTimerRef.current);
       autopayScheduleTimerRef.current = window.setTimeout(() => {
         runAutopay(pending).catch((error) => {
@@ -56888,9 +56889,24 @@ Provided: ${stringify2(envelope)}`);
         setCreateTxHash(null);
       }
     }, [createReceipt.isSuccess]);
+    import_react17.default.useEffect(() => {
+      if (!createReceipt.isSuccess) return;
+      setIsAwaitingInvoice(true);
+    }, [createReceipt.isSuccess]);
+    import_react17.default.useEffect(() => {
+      if (!isAwaitingInvoice) return;
+      const target = nextInvoiceNumberRef.current;
+      if (target === null) return;
+      const created = onchainInvoices.some((inv) => inv.number === target);
+      if (created) {
+        setIsAwaitingInvoice(false);
+        nextInvoiceNumberRef.current = null;
+      }
+    }, [isAwaitingInvoice, onchainInvoices]);
     const handleGenerateInvoice = import_react17.default.useCallback(async () => {
       if (!account.address) return;
       setIsCreatingInvoice(true);
+      setIsAwaitingInvoice(true);
       try {
         const r = await fetch("/api/invoices/create", {
           method: "POST",
@@ -56900,8 +56916,13 @@ Provided: ${stringify2(envelope)}`);
         const data = await r.json();
         if (!r.ok) throw new Error(data?.error ?? "Failed to create invoice");
         setCreateTxHash(data.hash);
+        if (data?.number) {
+          nextInvoiceNumberRef.current = BigInt(data.number);
+        }
       } catch (err) {
         console.error(err);
+        setIsAwaitingInvoice(false);
+        nextInvoiceNumberRef.current = null;
       } finally {
         setIsCreatingInvoice(false);
       }
@@ -57267,9 +57288,9 @@ Provided: ${stringify2(envelope)}`);
             "button",
             {
               className: "btn btn-outline",
-              disabled: !account.address || isCreatingInvoice || !invoiceRegistryAddress,
+              disabled: !account.address || isCreatingInvoice || isAwaitingInvoice || !invoiceRegistryAddress,
               onClick: handleGenerateInvoice,
-              children: isCreatingInvoice ? "Generating\u2026" : "Generate invoice"
+              children: isCreatingInvoice || isAwaitingInvoice ? "Generating\u2026" : "Generate invoice"
             }
           )
         ] }) }),
