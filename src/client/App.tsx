@@ -1,8 +1,9 @@
 import React from 'react'
 import { useConnection, useConnect, useConnectors, useDisconnect, usePublicClient, useReadContract, useReadContracts, useWaitForTransactionReceipt, useWalletClient } from 'wagmi'
 import { Hooks } from 'tempo.ts/wagmi'
-import { Abis, WebCryptoP256 } from 'tempo.ts/viem'
-import { formatUnits, getAddress, hexToString, parseUnits, pad, stringToHex } from 'viem'
+import { Abis, Actions, Account, WebCryptoP256 } from 'tempo.ts/viem'
+import { formatUnits, getAddress, hexToString, parseUnits, pad, stringToHex, createWalletClient, http } from 'viem'
+import { tempo } from 'tempo.ts/chains'
 import { Address } from 'ox'
 import { createStore, del, get, set } from 'idb-keyval'
 import { getConfig } from './api'
@@ -79,7 +80,7 @@ export function App() {
     kind: 'success' | 'error'
     message: string
   } | null>(null)
-  const autopayTimerRef = React.useRef<number | null>(null)
+  const autopayNoticeTimerRef = React.useRef<number | null>(null)
   const [copiedId, setCopiedId] = React.useState<string | null>(null)
   const copyTimerRef = React.useRef<number | null>(null)
   const alphaUsdToken = '0x20c0000000000000000000000000000000000001' as const
@@ -99,6 +100,8 @@ export function App() {
   const [isAutopayBusy, setIsAutopayBusy] = React.useState(false)
   const [transactions, setTransactions] = React.useState<TransferItem[]>([])
   const signupRequestedRef = React.useRef(false)
+  const autopayInFlightRef = React.useRef<Set<string>>(new Set())
+  const autopayScheduleTimerRef = React.useRef<number | null>(null)
 
   const refreshBalanceAfterFaucet = React.useCallback(() => {
     const startingBalance = balanceQuery.data ?? 0n
@@ -135,9 +138,13 @@ export function App() {
         window.clearTimeout(fundingTimerRef.current)
         fundingTimerRef.current = null
       }
-      if (autopayTimerRef.current) {
-        window.clearTimeout(autopayTimerRef.current)
-        autopayTimerRef.current = null
+      if (autopayNoticeTimerRef.current) {
+        window.clearTimeout(autopayNoticeTimerRef.current)
+        autopayNoticeTimerRef.current = null
+      }
+      if (autopayScheduleTimerRef.current) {
+        window.clearTimeout(autopayScheduleTimerRef.current)
+        autopayScheduleTimerRef.current = null
       }
     }
   }, [])
@@ -238,10 +245,10 @@ export function App() {
       })
     } finally {
       setIsAutopayBusy(false)
-      if (autopayTimerRef.current) window.clearTimeout(autopayTimerRef.current)
-      autopayTimerRef.current = window.setTimeout(() => {
+      if (autopayNoticeTimerRef.current) window.clearTimeout(autopayNoticeTimerRef.current)
+      autopayNoticeTimerRef.current = window.setTimeout(() => {
         setAutopayNotice(null)
-        autopayTimerRef.current = null
+        autopayNoticeTimerRef.current = null
       }, 3000)
     }
   }, [account.address, alphaUsdToken, publicClient, walletClient.data])
@@ -319,6 +326,45 @@ export function App() {
     await refreshMobileInvoices()
   }, [refreshMobileInvoices])
 
+  const runAutopay = React.useCallback(async (inv: OnchainInvoice) => {
+    if (!account.address || !merchantAddress) return
+    const keyStorageKey = `autopay:${account.address.toLowerCase()}`
+    const stored = await get<StoredAccessKey>(keyStorageKey, accessKeyStore)
+    if (!stored) {
+      setAutopayNotice({
+        kind: 'error',
+        message: 'Autopay key missing. Toggle Autopay again.',
+      })
+      setIsAutopayEnabled(false)
+      return
+    }
+
+    const accessAccount = Account.fromWebCryptoP256(stored.keyPair, { access: account.address })
+    const client = createWalletClient({
+      chain: tempo({ feeToken: alphaUsdToken }),
+      transport: http(),
+      account: accessAccount,
+    })
+
+    const result = await Actions.token.transferSync(client, {
+      amount: inv.amount,
+      to: merchantAddress,
+      token: alphaUsdToken,
+      memo: inv.invoiceId,
+      feeToken: alphaUsdToken,
+    })
+
+    handlePaymentSuccess(result.receipt.transactionHash)
+    setAutopayNotice({ kind: 'success', message: 'Autopay payment sent.' })
+    if (autopayNoticeTimerRef.current) window.clearTimeout(autopayNoticeTimerRef.current)
+    autopayNoticeTimerRef.current = window.setTimeout(() => {
+      setAutopayNotice(null)
+      autopayNoticeTimerRef.current = null
+    }, 3000)
+    await refreshMerchantInvoices()
+    await refreshMobileInvoices()
+  }, [account.address, alphaUsdToken, handlePaymentSuccess, merchantAddress, refreshMerchantInvoices, refreshMobileInvoices])
+
   React.useEffect(() => {
     if (!account.address) {
       setTransactions([])
@@ -367,6 +413,36 @@ export function App() {
   const openInvoices = React.useMemo(() => {
     return onchainInvoices.filter((inv) => inv.status === 0)
   }, [onchainInvoices])
+
+  React.useEffect(() => {
+    if (!isAutopayEnabled && autopayScheduleTimerRef.current) {
+      window.clearTimeout(autopayScheduleTimerRef.current)
+      autopayScheduleTimerRef.current = null
+    }
+  }, [isAutopayEnabled])
+
+  React.useEffect(() => {
+    if (!isAutopayEnabled || isAutopayBusy) return
+    if (!account.address || !merchantAddress) return
+    const pending = openInvoices.find((inv) => !autopayInFlightRef.current.has(String(inv.number)))
+    if (!pending) return
+
+    autopayInFlightRef.current.add(String(pending.number))
+    setAutopayNotice({ kind: 'success', message: 'Autopay scheduled…' })
+
+    if (autopayScheduleTimerRef.current) window.clearTimeout(autopayScheduleTimerRef.current)
+    autopayScheduleTimerRef.current = window.setTimeout(() => {
+      runAutopay(pending)
+        .catch((error) => {
+          console.error('Autopay failed', error)
+          setAutopayNotice({ kind: 'error', message: 'Autopay failed.' })
+        })
+        .finally(() => {
+          autopayInFlightRef.current.delete(String(pending.number))
+          autopayScheduleTimerRef.current = null
+        })
+    }, 3500)
+  }, [account.address, isAutopayBusy, isAutopayEnabled, merchantAddress, openInvoices, runAutopay])
 
   const createReceipt = useWaitForTransactionReceipt({
     hash: createTxHash ?? undefined,

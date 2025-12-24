@@ -7,6 +7,12 @@ export const wagmiConfig = createConfig({
   chains: [tempo({ feeToken: '0x20c0000000000000000000000000000000000001' })],
   connectors: [
     webAuthn({
+      createOptions: {
+        pubKeyCredParams: [
+          { type: 'public-key', alg: -7 }, // ES256
+          { type: 'public-key', alg: -257 }, // RS256
+        ],
+      },
       keyManager: KeyManager.localStorage(),
     }),
   ],

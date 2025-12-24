@@ -29736,7 +29736,7 @@ ${prettyStateOverride(stateOverride)}`;
       const a = point.toAffine();
       return concatBytes3(Uint8Array.from([4]), Fp.toBytes(a.x), Fp.toBytes(a.y));
     });
-    const fromBytes4 = CURVE.fromBytes || ((bytes) => {
+    const fromBytes5 = CURVE.fromBytes || ((bytes) => {
       const tail = bytes.subarray(1);
       const x = Fp.fromBytes(tail.subarray(0, Fp.BYTES));
       const y = Fp.fromBytes(tail.subarray(Fp.BYTES, 2 * Fp.BYTES));
@@ -29864,7 +29864,7 @@ ${prettyStateOverride(stateOverride)}`;
        * @param hex short/long ECDSA hex
        */
       static fromHex(hex) {
-        const P = Point2.fromAffine(fromBytes4(ensureBytes("pointHex", hex)));
+        const P = Point2.fromAffine(fromBytes5(ensureBytes("pointHex", hex)));
         P.assertValidity();
         return P;
       }
@@ -30313,7 +30313,7 @@ ${prettyStateOverride(stateOverride)}`;
         return point;
       }
     };
-    function getPublicKey(privateKey, isCompressed = true) {
+    function getPublicKey3(privateKey, isCompressed = true) {
       return Point2.fromPrivateKey(privateKey).toRawBytes(isCompressed);
     }
     function isProbPub(item) {
@@ -30332,7 +30332,7 @@ ${prettyStateOverride(stateOverride)}`;
         return len === compLen || len === uncompLen;
       }
     }
-    function getSharedSecret(privateA, publicB, isCompressed = true) {
+    function getSharedSecret2(privateA, publicB, isCompressed = true) {
       if (isProbPub(privateA) === true)
         throw new Error("first arg must be private key");
       if (isProbPub(publicB) === false)
@@ -30399,7 +30399,7 @@ ${prettyStateOverride(stateOverride)}`;
     }
     const defaultSigOpts = { lowS: CURVE.lowS, prehash: false };
     const defaultVerOpts = { lowS: CURVE.lowS, prehash: false };
-    function sign3(msgHash, privKey, opts = defaultSigOpts) {
+    function sign5(msgHash, privKey, opts = defaultSigOpts) {
       const { seed, k2sig } = prepSig(msgHash, privKey, opts);
       const C = CURVE;
       const drbg = createHmacDrbg(C.hash.outputLen, C.nByteLength, C.hmac);
@@ -30459,9 +30459,9 @@ ${prettyStateOverride(stateOverride)}`;
     }
     return {
       CURVE,
-      getPublicKey,
-      getSharedSecret,
-      sign: sign3,
+      getPublicKey: getPublicKey3,
+      getSharedSecret: getSharedSecret2,
+      sign: sign5,
       verify: verify5,
       ProjectivePoint: Point2,
       Signature,
@@ -36895,9 +36895,57 @@ ${prettyStateOverride(stateOverride)}`;
   init_Hex();
 
   // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/Secp256k1.js
+  var Secp256k1_exports = {};
+  __export(Secp256k1_exports, {
+    createKeyPair: () => createKeyPair,
+    getPublicKey: () => getPublicKey,
+    getSharedSecret: () => getSharedSecret,
+    noble: () => noble,
+    randomPrivateKey: () => randomPrivateKey,
+    recoverAddress: () => recoverAddress2,
+    recoverPublicKey: () => recoverPublicKey2,
+    sign: () => sign,
+    verify: () => verify
+  });
   init_secp256k1();
   init_Bytes();
   init_Hex();
+
+  // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/internal/entropy.js
+  var extraEntropy = false;
+
+  // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/Secp256k1.js
+  var noble = secp256k1;
+  function createKeyPair(options = {}) {
+    const { as = "Hex" } = options;
+    const privateKey = randomPrivateKey({ as });
+    const publicKey = getPublicKey({ privateKey });
+    return {
+      privateKey,
+      publicKey
+    };
+  }
+  function getPublicKey(options) {
+    const { privateKey } = options;
+    const point = secp256k1.ProjectivePoint.fromPrivateKey(from2(privateKey).slice(2));
+    return from3(point);
+  }
+  function getSharedSecret(options) {
+    const { as = "Hex", privateKey, publicKey } = options;
+    const point = secp256k1.ProjectivePoint.fromHex(toHex2(publicKey).slice(2));
+    const sharedPoint = point.multiply(secp256k1.utils.normPrivateKeyToScalar(from2(privateKey).slice(2)));
+    const sharedSecret = sharedPoint.toRawBytes(true);
+    if (as === "Hex")
+      return fromBytes(sharedSecret);
+    return sharedSecret;
+  }
+  function randomPrivateKey(options = {}) {
+    const { as = "Hex" } = options;
+    const bytes = secp256k1.utils.randomPrivateKey();
+    if (as === "Hex")
+      return fromBytes(bytes);
+    return bytes;
+  }
   function recoverAddress2(options) {
     return fromPublicKey(recoverPublicKey2(options));
   }
@@ -36907,6 +36955,19 @@ ${prettyStateOverride(stateOverride)}`;
     const signature_ = new secp256k1.Signature(BigInt(r), BigInt(s)).addRecoveryBit(yParity);
     const point = signature_.recoverPublicKey(from2(payload).substring(2));
     return from3(point);
+  }
+  function sign(options) {
+    const { extraEntropy: extraEntropy2 = extraEntropy, hash: hash5, payload, privateKey } = options;
+    const { r, s, recovery } = secp256k1.sign(from(payload), from(privateKey), {
+      extraEntropy: typeof extraEntropy2 === "boolean" ? extraEntropy2 : from2(extraEntropy2).slice(2),
+      lowS: true,
+      ...hash5 ? { prehash: true } : {}
+    });
+    return {
+      r,
+      s,
+      yParity: recovery
+    };
   }
   function verify(options) {
     const { address, hash: hash5, payload, publicKey, signature } = options;
@@ -40461,6 +40522,19 @@ ${prettyStateOverride(stateOverride)}`;
       writeContract: (args) => writeContract(client, args),
       writeContractSync: (args) => writeContractSync(client, args)
     };
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/clients/createWalletClient.js
+  function createWalletClient(parameters) {
+    const { key = "wallet", name = "Wallet Client", transport } = parameters;
+    const client = createClient({
+      ...parameters,
+      key,
+      name,
+      transport,
+      type: "walletClient"
+    });
+    return client.extend(walletActions);
   }
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/clients/transports/createTransport.js
@@ -45749,13 +45823,34 @@ ${prettyStateOverride(stateOverride)}`;
 
   // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/P256.js
   init_Bytes();
+  init_Hex();
+  function getPublicKey2(options) {
+    const { privateKey } = options;
+    const point = secp256r1.ProjectivePoint.fromPrivateKey(typeof privateKey === "string" ? privateKey.slice(2) : fromBytes(privateKey).slice(2));
+    return from3(point);
+  }
+  function sign2(options) {
+    const { extraEntropy: extraEntropy2 = extraEntropy, hash: hash5, payload, privateKey } = options;
+    const { r, s, recovery } = secp256r1.sign(payload instanceof Uint8Array ? payload : fromHex(payload), privateKey instanceof Uint8Array ? privateKey : fromHex(privateKey), {
+      extraEntropy: typeof extraEntropy2 === "boolean" ? extraEntropy2 : from2(extraEntropy2).slice(2),
+      lowS: true,
+      ...hash5 ? { prehash: true } : {}
+    });
+    return {
+      r,
+      s,
+      yParity: recovery
+    };
+  }
   function verify2(options) {
     const { hash: hash5, payload, publicKey, signature } = options;
     return secp256r1.verify(signature, payload instanceof Uint8Array ? payload : fromHex(payload), toHex2(publicKey).substring(2), ...hash5 ? [{ prehash: true, lowS: true }] : []);
   }
 
   // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/Base64.js
+  init_Bytes();
   var encoder5 = /* @__PURE__ */ new TextEncoder();
+  var decoder2 = /* @__PURE__ */ new TextDecoder();
   var integerToCharacter = /* @__PURE__ */ Object.fromEntries(Array.from("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/").map((a, i) => [i, a.charCodeAt(0)]));
   var characterToInteger = {
     ...Object.fromEntries(Array.from("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/").map((a, i) => [a.charCodeAt(0), i])),
@@ -45763,6 +45858,30 @@ ${prettyStateOverride(stateOverride)}`;
     ["-".charCodeAt(0)]: 62,
     ["_".charCodeAt(0)]: 63
   };
+  function fromBytes4(value, options = {}) {
+    const { pad: pad5 = true, url = false } = options;
+    const encoded = new Uint8Array(Math.ceil(value.length / 3) * 4);
+    for (let i = 0, j = 0; j < value.length; i += 4, j += 3) {
+      const y = (value[j] << 16) + (value[j + 1] << 8) + (value[j + 2] | 0);
+      encoded[i] = integerToCharacter[y >> 18];
+      encoded[i + 1] = integerToCharacter[y >> 12 & 63];
+      encoded[i + 2] = integerToCharacter[y >> 6 & 63];
+      encoded[i + 3] = integerToCharacter[y & 63];
+    }
+    const k = value.length % 3;
+    const end = Math.floor(value.length / 3) * 4 + (k && k + 1);
+    let base64 = decoder2.decode(new Uint8Array(encoded.buffer, 0, end));
+    if (pad5 && k === 1)
+      base64 += "==";
+    if (pad5 && k === 2)
+      base64 += "=";
+    if (url)
+      base64 = base64.replaceAll("+", "-").replaceAll("/", "_");
+    return base64;
+  }
+  function fromHex6(value, options = {}) {
+    return fromBytes4(fromHex(value), options);
+  }
   function toBytes4(value) {
     const base64 = value.replace(/=+$/, "");
     const size6 = base64.length;
@@ -45871,6 +45990,23 @@ ${prettyStateOverride(stateOverride)}`;
       });
     }
   }
+  function getAuthenticatorData(options = {}) {
+    const { flag = 5, rpId = window.location.hostname, signCount = 0 } = options;
+    const rpIdHash = sha2564(fromString2(rpId));
+    const flag_bytes = fromNumber(flag, { size: 1 });
+    const signCount_bytes = fromNumber(signCount, { size: 4 });
+    return concat3(rpIdHash, flag_bytes, signCount_bytes);
+  }
+  function getClientDataJSON(options) {
+    const { challenge: challenge2, crossOrigin = false, extraClientData, origin = window.location.origin } = options;
+    return JSON.stringify({
+      type: "webauthn.get",
+      challenge: fromHex6(challenge2, { url: true, pad: false }),
+      origin,
+      crossOrigin,
+      ...extraClientData
+    });
+  }
   function getCredentialCreationOptions(options) {
     const { attestation = "none", authenticatorSelection = {
       residentKey: "preferred",
@@ -45931,7 +46067,33 @@ ${prettyStateOverride(stateOverride)}`;
       }
     };
   }
-  async function sign(options) {
+  function getSignPayload2(options) {
+    const { challenge: challenge2, crossOrigin, extraClientData, flag, origin, rpId, signCount, userVerification = "required" } = options;
+    const authenticatorData = getAuthenticatorData({
+      flag,
+      rpId,
+      signCount
+    });
+    const clientDataJSON = getClientDataJSON({
+      challenge: challenge2,
+      crossOrigin,
+      extraClientData,
+      origin
+    });
+    const clientDataJSONHash = sha2564(fromString2(clientDataJSON));
+    const challengeIndex = clientDataJSON.indexOf('"challenge"');
+    const typeIndex = clientDataJSON.indexOf('"type"');
+    const metadata = {
+      authenticatorData,
+      clientDataJSON,
+      challengeIndex,
+      typeIndex,
+      userVerificationRequired: userVerification === "required"
+    };
+    const payload = concat3(authenticatorData, clientDataJSONHash);
+    return { metadata, payload };
+  }
+  async function sign3(options) {
     const { getFn = window.navigator.credentials.get.bind(window.navigator.credentials), ...rest } = options;
     const requestOptions = getCredentialRequestOptions(rest);
     try {
@@ -46518,7 +46680,7 @@ Provided: ${stringify2(envelope)}`);
     from: () => from16,
     fromRpc: () => fromRpc6,
     fromTuple: () => fromTuple3,
-    getSignPayload: () => getSignPayload2,
+    getSignPayload: () => getSignPayload3,
     hash: () => hash3,
     toRpc: () => toRpc7,
     toTuple: () => toTuple4
@@ -46582,7 +46744,7 @@ Provided: ${stringify2(envelope)}`);
       args.signature = deserialize2(signatureSerialized);
     return from16(args);
   }
-  function getSignPayload2(authorization) {
+  function getSignPayload3(authorization) {
     return hash3(authorization);
   }
   function hash3(authorization) {
@@ -46970,7 +47132,7 @@ Provided: ${stringify2(envelope)}`);
     feePayerMagic: () => feePayerMagic,
     from: () => from19,
     getFeePayerSignPayload: () => getFeePayerSignPayload,
-    getSignPayload: () => getSignPayload3,
+    getSignPayload: () => getSignPayload4,
     hash: () => hash4,
     serialize: () => serialize4,
     serializedType: () => serializedType,
@@ -47274,7 +47436,7 @@ Provided: ${stringify2(envelope)}`);
     ];
     return concat3(options.format === "feePayer" ? feePayerMagic : serializedType, fromHex3(serialized));
   }
-  function getSignPayload3(envelope) {
+  function getSignPayload4(envelope) {
     return hash4(envelope, { presign: true });
   }
   function hash4(envelope, options = {}) {
@@ -47623,6 +47785,23 @@ Provided: ${stringify2(envelope)}`);
     }
   });
   var tempo = tempoTestnet;
+
+  // node_modules/.pnpm/tempo.ts@0.11.1_@remix-run+headers@0.17.2_@remix-run+route-pattern@0.15.3_@remix-run+se_1cd6130ea8fff18f43cb1ad22b1ec2f0/node_modules/tempo.ts/dist/viem/Actions/amm.js
+  var amm_exports = {};
+  __export(amm_exports, {
+    burn: () => burn,
+    burnSync: () => burnSync,
+    getLiquidityBalance: () => getLiquidityBalance,
+    getPool: () => getPool,
+    mint: () => mint,
+    mintSync: () => mintSync,
+    rebalanceSwap: () => rebalanceSwap,
+    rebalanceSwapSync: () => rebalanceSwapSync,
+    watchBurn: () => watchBurn,
+    watchFeeSwap: () => watchFeeSwap,
+    watchMint: () => watchMint,
+    watchRebalanceSwap: () => watchRebalanceSwap
+  });
 
   // node_modules/.pnpm/tempo.ts@0.11.1_@remix-run+headers@0.17.2_@remix-run+route-pattern@0.15.3_@remix-run+se_1cd6130ea8fff18f43cb1ad22b1ec2f0/node_modules/tempo.ts/dist/viem/Abis.js
   var Abis_exports = {};
@@ -49809,6 +49988,33 @@ Provided: ${stringify2(envelope)}`);
   }
 
   // node_modules/.pnpm/tempo.ts@0.11.1_@remix-run+headers@0.17.2_@remix-run+route-pattern@0.15.3_@remix-run+se_1cd6130ea8fff18f43cb1ad22b1ec2f0/node_modules/tempo.ts/dist/viem/Actions/dex.js
+  var dex_exports = {};
+  __export(dex_exports, {
+    buy: () => buy,
+    buySync: () => buySync,
+    cancel: () => cancel,
+    cancelSync: () => cancelSync,
+    createPair: () => createPair,
+    createPairSync: () => createPairSync,
+    getBalance: () => getBalance2,
+    getBuyQuote: () => getBuyQuote,
+    getOrder: () => getOrder,
+    getOrderbook: () => getOrderbook,
+    getSellQuote: () => getSellQuote,
+    getTickLevel: () => getTickLevel,
+    place: () => place,
+    placeFlip: () => placeFlip,
+    placeFlipSync: () => placeFlipSync,
+    placeSync: () => placeSync,
+    sell: () => sell,
+    sellSync: () => sellSync,
+    watchFlipOrderPlaced: () => watchFlipOrderPlaced,
+    watchOrderCancelled: () => watchOrderCancelled,
+    watchOrderFilled: () => watchOrderFilled,
+    watchOrderPlaced: () => watchOrderPlaced,
+    withdraw: () => withdraw,
+    withdrawSync: () => withdrawSync
+  });
   init_Hex();
   async function buy(client, parameters) {
     return buy.inner(writeContract, client, parameters);
@@ -50597,6 +50803,11 @@ Provided: ${stringify2(envelope)}`);
   }
 
   // node_modules/.pnpm/tempo.ts@0.11.1_@remix-run+headers@0.17.2_@remix-run+route-pattern@0.15.3_@remix-run+se_1cd6130ea8fff18f43cb1ad22b1ec2f0/node_modules/tempo.ts/dist/viem/Actions/faucet.js
+  var faucet_exports = {};
+  __export(faucet_exports, {
+    fund: () => fund,
+    fundSync: () => fundSync
+  });
   async function fund(client, parameters) {
     const account = parseAccount(parameters.account);
     return client.request({
@@ -50632,6 +50843,13 @@ Provided: ${stringify2(envelope)}`);
   }
 
   // node_modules/.pnpm/tempo.ts@0.11.1_@remix-run+headers@0.17.2_@remix-run+route-pattern@0.15.3_@remix-run+se_1cd6130ea8fff18f43cb1ad22b1ec2f0/node_modules/tempo.ts/dist/viem/Actions/fee.js
+  var fee_exports = {};
+  __export(fee_exports, {
+    getUserToken: () => getUserToken,
+    setUserToken: () => setUserToken,
+    setUserTokenSync: () => setUserTokenSync,
+    watchSetUserToken: () => watchSetUserToken
+  });
   async function getUserToken(client, ...parameters) {
     const { account: account_ = client.account, ...rest } = parameters[0] ?? {};
     if (!account_)
@@ -50708,6 +50926,20 @@ Provided: ${stringify2(envelope)}`);
       receipt
     };
   }
+  function watchSetUserToken(client, parameters) {
+    const { onUserTokenSet, ...rest } = parameters;
+    return watchContractEvent(client, {
+      ...rest,
+      address: feeManager2,
+      abi: feeManager,
+      eventName: "UserTokenSet",
+      onLogs: (logs) => {
+        for (const log of logs)
+          onUserTokenSet(log.args, log);
+      },
+      strict: true
+    });
+  }
 
   // node_modules/.pnpm/tempo.ts@0.11.1_@remix-run+headers@0.17.2_@remix-run+route-pattern@0.15.3_@remix-run+se_1cd6130ea8fff18f43cb1ad22b1ec2f0/node_modules/tempo.ts/dist/wagmi/Actions/fee.js
   function getUserToken2(config2, parameters) {
@@ -50757,6 +50989,13 @@ Provided: ${stringify2(envelope)}`);
   }
 
   // node_modules/.pnpm/tempo.ts@0.11.1_@remix-run+headers@0.17.2_@remix-run+route-pattern@0.15.3_@remix-run+se_1cd6130ea8fff18f43cb1ad22b1ec2f0/node_modules/tempo.ts/dist/viem/Actions/nonce.js
+  var nonce_exports = {};
+  __export(nonce_exports, {
+    getNonce: () => getNonce,
+    getNonceKeyCount: () => getNonceKeyCount,
+    watchActiveKeyCountChanged: () => watchActiveKeyCountChanged,
+    watchNonceIncremented: () => watchNonceIncremented
+  });
   async function getNonce(client, parameters) {
     const { account, nonceKey, ...rest } = parameters;
     return readContract(client, {
@@ -50889,6 +51128,23 @@ Provided: ${stringify2(envelope)}`);
   }
 
   // node_modules/.pnpm/tempo.ts@0.11.1_@remix-run+headers@0.17.2_@remix-run+route-pattern@0.15.3_@remix-run+se_1cd6130ea8fff18f43cb1ad22b1ec2f0/node_modules/tempo.ts/dist/viem/Actions/policy.js
+  var policy_exports = {};
+  __export(policy_exports, {
+    create: () => create2,
+    createSync: () => createSync,
+    getData: () => getData,
+    isAuthorized: () => isAuthorized,
+    modifyBlacklist: () => modifyBlacklist,
+    modifyBlacklistSync: () => modifyBlacklistSync,
+    modifyWhitelist: () => modifyWhitelist,
+    modifyWhitelistSync: () => modifyWhitelistSync,
+    setAdmin: () => setAdmin,
+    setAdminSync: () => setAdminSync,
+    watchAdminUpdated: () => watchAdminUpdated,
+    watchBlacklistUpdated: () => watchBlacklistUpdated,
+    watchCreate: () => watchCreate,
+    watchWhitelistUpdated: () => watchWhitelistUpdated
+  });
   var policyTypeMap = {
     whitelist: 0,
     blacklist: 1
@@ -51359,6 +51615,19 @@ Provided: ${stringify2(envelope)}`);
   }
 
   // node_modules/.pnpm/tempo.ts@0.11.1_@remix-run+headers@0.17.2_@remix-run+route-pattern@0.15.3_@remix-run+se_1cd6130ea8fff18f43cb1ad22b1ec2f0/node_modules/tempo.ts/dist/viem/Actions/reward.js
+  var reward_exports = {};
+  __export(reward_exports, {
+    claim: () => claim,
+    claimSync: () => claimSync,
+    getTotalPerSecond: () => getTotalPerSecond,
+    getUserRewardInfo: () => getUserRewardInfo,
+    setRecipient: () => setRecipient,
+    setRecipientSync: () => setRecipientSync,
+    start: () => start,
+    startSync: () => startSync,
+    watchRewardRecipientSet: () => watchRewardRecipientSet,
+    watchRewardScheduled: () => watchRewardScheduled
+  });
   async function claim(client, parameters) {
     return claim.inner(writeContract, client, parameters);
   }
@@ -51673,6 +51942,54 @@ Provided: ${stringify2(envelope)}`);
   }
 
   // node_modules/.pnpm/tempo.ts@0.11.1_@remix-run+headers@0.17.2_@remix-run+route-pattern@0.15.3_@remix-run+se_1cd6130ea8fff18f43cb1ad22b1ec2f0/node_modules/tempo.ts/dist/viem/Actions/token.js
+  var token_exports = {};
+  __export(token_exports, {
+    approve: () => approve,
+    approveSync: () => approveSync,
+    burn: () => burn3,
+    burnBlocked: () => burnBlocked,
+    burnBlockedSync: () => burnBlockedSync,
+    burnSync: () => burnSync3,
+    changeTransferPolicy: () => changeTransferPolicy,
+    changeTransferPolicySync: () => changeTransferPolicySync,
+    create: () => create4,
+    createSync: () => createSync3,
+    getAllowance: () => getAllowance,
+    getBalance: () => getBalance4,
+    getMetadata: () => getMetadata,
+    getRoleAdmin: () => getRoleAdmin,
+    grantRoles: () => grantRoles,
+    grantRolesSync: () => grantRolesSync,
+    hasRole: () => hasRole,
+    mint: () => mint3,
+    mintSync: () => mintSync3,
+    pause: () => pause,
+    pauseSync: () => pauseSync,
+    prepareUpdateQuoteToken: () => prepareUpdateQuoteToken,
+    prepareUpdateQuoteTokenSync: () => prepareUpdateQuoteTokenSync,
+    renounceRoles: () => renounceRoles,
+    renounceRolesSync: () => renounceRolesSync,
+    revokeRoles: () => revokeRoles,
+    revokeRolesSync: () => revokeRolesSync,
+    setRoleAdmin: () => setRoleAdmin,
+    setRoleAdminSync: () => setRoleAdminSync,
+    setSupplyCap: () => setSupplyCap,
+    setSupplyCapSync: () => setSupplyCapSync,
+    transfer: () => transfer,
+    transferSync: () => transferSync,
+    unpause: () => unpause,
+    unpauseSync: () => unpauseSync,
+    updateQuoteToken: () => updateQuoteToken,
+    updateQuoteTokenSync: () => updateQuoteTokenSync,
+    watchAdminRole: () => watchAdminRole,
+    watchApprove: () => watchApprove,
+    watchBurn: () => watchBurn3,
+    watchCreate: () => watchCreate3,
+    watchMint: () => watchMint3,
+    watchRole: () => watchRole,
+    watchTransfer: () => watchTransfer,
+    watchUpdateQuoteToken: () => watchUpdateQuoteToken
+  });
   init_Hex();
   async function approve(client, parameters) {
     const { token, ...rest } = parameters;
@@ -53261,11 +53578,23 @@ Provided: ${stringify2(envelope)}`);
   }
 
   // node_modules/.pnpm/tempo.ts@0.11.1_@remix-run+headers@0.17.2_@remix-run+route-pattern@0.15.3_@remix-run+se_1cd6130ea8fff18f43cb1ad22b1ec2f0/node_modules/tempo.ts/dist/viem/Account.js
+  var Account_exports = {};
+  __export(Account_exports, {
+    fromHeadlessWebAuthn: () => fromHeadlessWebAuthn,
+    fromP256: () => fromP256,
+    fromSecp256k1: () => fromSecp256k1,
+    fromWebAuthnP256: () => fromWebAuthnP256,
+    fromWebCryptoP256: () => fromWebCryptoP256,
+    signKeyAuthorization: () => signKeyAuthorization,
+    z_KeyAuthorization: () => KeyAuthorization_exports,
+    z_SignatureEnvelope: () => SignatureEnvelope_exports,
+    z_TxEnvelopeTempo: () => TxEnvelopeTempo_exports
+  });
   init_Hex();
 
   // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/WebCryptoP256.js
   init_Bytes();
-  async function createKeyPair(options = {}) {
+  async function createKeyPair2(options = {}) {
     const { extractable = false } = options;
     const keypair = await globalThis.crypto.subtle.generateKey({
       name: "ECDSA",
@@ -53278,7 +53607,7 @@ Provided: ${stringify2(envelope)}`);
       publicKey
     };
   }
-  async function sign2(options) {
+  async function sign4(options) {
     const { payload, privateKey } = options;
     const signature = await globalThis.crypto.subtle.sign({
       name: "ECDSA",
@@ -53403,6 +53732,68 @@ Provided: ${stringify2(envelope)}`);
   }
 
   // node_modules/.pnpm/tempo.ts@0.11.1_@remix-run+headers@0.17.2_@remix-run+route-pattern@0.15.3_@remix-run+se_1cd6130ea8fff18f43cb1ad22b1ec2f0/node_modules/tempo.ts/dist/viem/Account.js
+  function fromHeadlessWebAuthn(privateKey, options) {
+    const { access, rpId, origin, storage } = options;
+    const publicKey = getPublicKey2({ privateKey });
+    return from21({
+      access,
+      keyType: "webAuthn",
+      publicKey,
+      async sign({ hash: hash5 }) {
+        const { metadata, payload } = getSignPayload2({
+          ...options,
+          challenge: hash5,
+          rpId,
+          origin
+        });
+        const signature = sign2({
+          payload,
+          privateKey,
+          hash: true
+        });
+        return SignatureEnvelope_exports.serialize({
+          metadata,
+          signature,
+          publicKey,
+          type: "webAuthn"
+        });
+      },
+      storage
+    });
+  }
+  function fromP256(privateKey, options = {}) {
+    const { access, storage } = options;
+    const publicKey = getPublicKey2({ privateKey });
+    return from21({
+      access,
+      keyType: "p256",
+      publicKey,
+      async sign({ hash: hash5 }) {
+        const signature = sign2({ payload: hash5, privateKey });
+        return SignatureEnvelope_exports.serialize({
+          signature,
+          publicKey,
+          type: "p256"
+        });
+      },
+      storage
+    });
+  }
+  function fromSecp256k1(privateKey, options = {}) {
+    const { access, storage } = options;
+    const publicKey = getPublicKey({ privateKey });
+    return from21({
+      access,
+      keyType: "secp256k1",
+      publicKey,
+      async sign(parameters) {
+        const { hash: hash5 } = parameters;
+        const signature = sign({ payload: hash5, privateKey });
+        return toHex4(signature);
+      },
+      storage
+    });
+  }
   function fromWebAuthnP256(credential, options = {}) {
     const { id } = credential;
     const { storage } = options;
@@ -53411,7 +53802,7 @@ Provided: ${stringify2(envelope)}`);
       keyType: "webAuthn",
       publicKey,
       async sign({ hash: hash5 }) {
-        const { metadata, signature } = await sign({
+        const { metadata, signature } = await sign3({
           ...options,
           challenge: hash5,
           credentialId: id
@@ -53434,7 +53825,7 @@ Provided: ${stringify2(envelope)}`);
       keyType: "p256",
       publicKey,
       async sign({ hash: hash5 }) {
-        const signature = await sign2({ payload: hash5, privateKey });
+        const signature = await sign4({ payload: hash5, privateKey });
         return SignatureEnvelope_exports.serialize({
           signature,
           prehash: true,
@@ -53445,6 +53836,25 @@ Provided: ${stringify2(envelope)}`);
       storage
     });
   }
+  async function signKeyAuthorization(account, parameters) {
+    const { key, expiry, limits } = parameters;
+    const { accessKeyAddress, keyType: type2 } = key;
+    const signature = await account.sign({
+      hash: KeyAuthorization_exports.getSignPayload({
+        address: accessKeyAddress,
+        expiry,
+        limits,
+        type: type2
+      })
+    });
+    return KeyAuthorization_exports.from({
+      address: accessKeyAddress,
+      expiry,
+      limits,
+      signature: SignatureEnvelope_exports.from(signature),
+      type: type2
+    });
+  }
   function fromBase(parameters) {
     const { keyType = "secp256k1", parentAddress, source = "privateKey" } = parameters;
     const address = parentAddress ?? fromPublicKey(parameters.publicKey);
@@ -53452,7 +53862,7 @@ Provided: ${stringify2(envelope)}`);
       includePrefix: false
     });
     const storage = from20(parameters.storage ?? memory(), { key: `tempo.ts:${address.toLowerCase()}` });
-    async function sign3({ hash: hash5 }) {
+    async function sign5({ hash: hash5 }) {
       const signature = await parameters.sign({ hash: hash5 });
       if (parentAddress)
         return SignatureEnvelope_exports.serialize(SignatureEnvelope_exports.from({
@@ -53465,11 +53875,11 @@ Provided: ${stringify2(envelope)}`);
     return {
       address: checksum2(address),
       keyType,
-      sign: sign3,
+      sign: sign5,
       async signAuthorization(parameters2) {
         const { chainId, nonce: nonce2 } = parameters2;
         const address2 = parameters2.contractAddress ?? parameters2.address;
-        const signature = await sign3({
+        const signature = await sign5({
           hash: hashAuthorization({ address: address2, chainId, nonce: nonce2 })
         });
         const envelope = SignatureEnvelope_exports.from(signature);
@@ -53487,7 +53897,7 @@ Provided: ${stringify2(envelope)}`);
       },
       async signMessage(parameters2) {
         const { message } = parameters2;
-        const signature = await sign3({ hash: hashMessage(message) });
+        const signature = await sign5({ hash: hashMessage(message) });
         const envelope = SignatureEnvelope_exports.from(signature);
         return SignatureEnvelope_exports.serialize(envelope);
       },
@@ -53499,14 +53909,14 @@ Provided: ${stringify2(envelope)}`);
           transaction.keyAuthorization = keyAuthorization;
           await storage.removeItem("pendingKeyAuthorization");
         }
-        const signature = await sign3({
+        const signature = await sign5({
           hash: keccak256(await serializer(transaction))
         });
         const envelope = SignatureEnvelope_exports.from(signature);
         return await serializer(transaction, envelope);
       },
       async signTypedData(typedData) {
-        const signature = await sign3({ hash: hashTypedData(typedData) });
+        const signature = await sign5({ hash: hashTypedData(typedData) });
         const envelope = SignatureEnvelope_exports.from(signature);
         return SignatureEnvelope_exports.serialize(envelope);
       },
@@ -54012,7 +54422,7 @@ Provided: ${stringify2(envelope)}`);
     };
   }
   async function getCredential(parameters) {
-    const { metadata, raw, signature } = await sign({
+    const { metadata, raw, signature } = await sign3({
       ...parameters,
       challenge: parameters.hash ?? "0x"
     });
@@ -54029,7 +54439,7 @@ Provided: ${stringify2(envelope)}`);
   // node_modules/.pnpm/tempo.ts@0.11.1_@remix-run+headers@0.17.2_@remix-run+route-pattern@0.15.3_@remix-run+se_1cd6130ea8fff18f43cb1ad22b1ec2f0/node_modules/tempo.ts/dist/viem/WebCryptoP256.js
   var WebCryptoP256_exports2 = {};
   __export(WebCryptoP256_exports2, {
-    createKeyPair: () => createKeyPair
+    createKeyPair: () => createKeyPair2
   });
 
   // node_modules/.pnpm/tempo.ts@0.11.1_@remix-run+headers@0.17.2_@remix-run+route-pattern@0.15.3_@remix-run+se_1cd6130ea8fff18f43cb1ad22b1ec2f0/node_modules/tempo.ts/dist/wagmi/Connector.js
@@ -54080,7 +54490,7 @@ Provided: ${stringify2(envelope)}`);
             const keyPair2 = await (async () => {
               if (!accessKeyOptions)
                 return void 0;
-              return await createKeyPair();
+              return await createKeyPair2();
             })();
             return { credential: credential2, keyPair: keyPair2 };
           }
@@ -54105,7 +54515,7 @@ Provided: ${stringify2(envelope)}`);
             const keyPair2 = await (async () => {
               if (!accessKeyOptions)
                 return void 0;
-              return await createKeyPair();
+              return await createKeyPair2();
             })();
             const { hash: hash5, keyAuthorization_unsigned } = await (async () => {
               if (!keyPair2)
@@ -55911,7 +56321,7 @@ Provided: ${stringify2(envelope)}`);
   }
   function http2(url, options = {}) {
     const { fetch: fetchFn = globalThis.fetch } = options;
-    const { getChallenge, getPublicKey, setPublicKey } = (() => {
+    const { getChallenge, getPublicKey: getPublicKey3, setPublicKey } = (() => {
       const base = typeof url === "string" ? url : "";
       const urls = typeof url === "object" ? url : {};
       return {
@@ -55929,7 +56339,7 @@ Provided: ${stringify2(envelope)}`);
         return await response.json();
       },
       async getPublicKey(parameters) {
-        const request = getPublicKey instanceof Request ? getPublicKey : new Request(getPublicKey);
+        const request = getPublicKey3 instanceof Request ? getPublicKey3 : new Request(getPublicKey3);
         const response = await fetchFn(new Request(request.url.replace(":credentialId", parameters.credential.id), request));
         if (!response.ok)
           throw new Error(`Failed to get public key: ${response.statusText}`);
@@ -55956,6 +56366,14 @@ Provided: ${stringify2(envelope)}`);
     chains: [tempo({ feeToken: "0x20c0000000000000000000000000000000000001" })],
     connectors: [
       webAuthn({
+        createOptions: {
+          pubKeyCredParams: [
+            { type: "public-key", alg: -7 },
+            // ES256
+            { type: "public-key", alg: -257 }
+            // RS256
+          ]
+        },
         keyManager: KeyManager_exports.localStorage()
       })
     ],
@@ -55968,6 +56386,20 @@ Provided: ${stringify2(envelope)}`);
   // src/client/App.tsx
   var import_react17 = __toESM(require_react(), 1);
 
+  // node_modules/.pnpm/tempo.ts@0.11.1_@remix-run+headers@0.17.2_@remix-run+route-pattern@0.15.3_@remix-run+se_1cd6130ea8fff18f43cb1ad22b1ec2f0/node_modules/tempo.ts/dist/viem/Actions/index.js
+  var Actions_exports2 = {};
+  __export(Actions_exports2, {
+    amm: () => amm_exports,
+    dex: () => dex_exports,
+    faucet: () => faucet_exports,
+    fee: () => fee_exports,
+    nonce: () => nonce_exports,
+    policy: () => policy_exports,
+    reward: () => reward_exports,
+    token: () => token_exports,
+    verifyHash: () => verifyHash2
+  });
+
   // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/index.js
   init_BlockOverrides();
   init_Bytes();
@@ -55975,6 +56407,54 @@ Provided: ${stringify2(envelope)}`);
   init_Hex();
   init_Json();
   init_Withdrawal();
+
+  // node_modules/.pnpm/tempo.ts@0.11.1_@remix-run+headers@0.17.2_@remix-run+route-pattern@0.15.3_@remix-run+se_1cd6130ea8fff18f43cb1ad22b1ec2f0/node_modules/tempo.ts/dist/viem/Actions/account.js
+  init_Hex();
+  async function verifyHash2(client, parameters) {
+    const { hash: hash5 } = parameters;
+    const signature = (() => {
+      const signature2 = parameters.signature;
+      if (validate2(signature2))
+        return signature2;
+      if (typeof signature2 === "object" && "r" in signature2 && "s" in signature2)
+        return SignatureEnvelope_exports.serialize({
+          type: "secp256k1",
+          signature: {
+            r: BigInt(signature2.r),
+            s: BigInt(signature2.s),
+            yParity: signature2.yParity
+          }
+        });
+      return fromBytes(signature2);
+    })();
+    const [envelope, userAddress] = (() => {
+      const envelope2 = SignatureEnvelope_exports.from(signature);
+      if (envelope2.type === "keychain")
+        return [envelope2.inner, envelope2.userAddress];
+      return [envelope2, void 0];
+    })();
+    if (envelope.type === "p256")
+      return verify2({
+        payload: hash5,
+        publicKey: envelope.publicKey,
+        signature: envelope.signature,
+        hash: envelope.prehash
+      });
+    if (envelope.type === "webAuthn")
+      return verify3({
+        challenge: hash5,
+        metadata: envelope.metadata,
+        publicKey: envelope.publicKey,
+        signature: envelope.signature
+      });
+    if (envelope.type === "keychain")
+      throw new Error("not supported");
+    const address = parameters.address ?? userAddress ?? Secp256k1_exports.recoverAddress({
+      payload: hash5,
+      signature: envelope.signature
+    });
+    return await getAction(client, verifyHash, "verifyHash")({ ...parameters, address });
+  }
 
   // src/client/api.ts
   async function getConfig() {
@@ -56079,7 +56559,7 @@ Provided: ${stringify2(envelope)}`);
     const [fundingNotice, setFundingNotice] = import_react17.default.useState(null);
     const fundingTimerRef = import_react17.default.useRef(null);
     const [autopayNotice, setAutopayNotice] = import_react17.default.useState(null);
-    const autopayTimerRef = import_react17.default.useRef(null);
+    const autopayNoticeTimerRef = import_react17.default.useRef(null);
     const [copiedId, setCopiedId] = import_react17.default.useState(null);
     const copyTimerRef = import_react17.default.useRef(null);
     const alphaUsdToken = "0x20c0000000000000000000000000000000000001";
@@ -56099,6 +56579,8 @@ Provided: ${stringify2(envelope)}`);
     const [isAutopayBusy, setIsAutopayBusy] = import_react17.default.useState(false);
     const [transactions, setTransactions] = import_react17.default.useState([]);
     const signupRequestedRef = import_react17.default.useRef(false);
+    const autopayInFlightRef = import_react17.default.useRef(/* @__PURE__ */ new Set());
+    const autopayScheduleTimerRef = import_react17.default.useRef(null);
     const refreshBalanceAfterFaucet = import_react17.default.useCallback(() => {
       const startingBalance = balanceQuery.data ?? 0n;
       const maxAttempts = 20;
@@ -56130,9 +56612,13 @@ Provided: ${stringify2(envelope)}`);
           window.clearTimeout(fundingTimerRef.current);
           fundingTimerRef.current = null;
         }
-        if (autopayTimerRef.current) {
-          window.clearTimeout(autopayTimerRef.current);
-          autopayTimerRef.current = null;
+        if (autopayNoticeTimerRef.current) {
+          window.clearTimeout(autopayNoticeTimerRef.current);
+          autopayNoticeTimerRef.current = null;
+        }
+        if (autopayScheduleTimerRef.current) {
+          window.clearTimeout(autopayScheduleTimerRef.current);
+          autopayScheduleTimerRef.current = null;
         }
       };
     }, []);
@@ -56226,10 +56712,10 @@ Provided: ${stringify2(envelope)}`);
         });
       } finally {
         setIsAutopayBusy(false);
-        if (autopayTimerRef.current) window.clearTimeout(autopayTimerRef.current);
-        autopayTimerRef.current = window.setTimeout(() => {
+        if (autopayNoticeTimerRef.current) window.clearTimeout(autopayNoticeTimerRef.current);
+        autopayNoticeTimerRef.current = window.setTimeout(() => {
           setAutopayNotice(null);
-          autopayTimerRef.current = null;
+          autopayNoticeTimerRef.current = null;
         }, 3e3);
       }
     }, [account.address, alphaUsdToken, publicClient, walletClient.data]);
@@ -56292,6 +56778,41 @@ Provided: ${stringify2(envelope)}`);
       }
       await refreshMobileInvoices();
     }, [refreshMobileInvoices]);
+    const runAutopay = import_react17.default.useCallback(async (inv) => {
+      if (!account.address || !merchantAddress) return;
+      const keyStorageKey = `autopay:${account.address.toLowerCase()}`;
+      const stored = await get(keyStorageKey, accessKeyStore);
+      if (!stored) {
+        setAutopayNotice({
+          kind: "error",
+          message: "Autopay key missing. Toggle Autopay again."
+        });
+        setIsAutopayEnabled(false);
+        return;
+      }
+      const accessAccount = Account_exports.fromWebCryptoP256(stored.keyPair, { access: account.address });
+      const client = createWalletClient({
+        chain: tempo({ feeToken: alphaUsdToken }),
+        transport: http(),
+        account: accessAccount
+      });
+      const result = await Actions_exports2.token.transferSync(client, {
+        amount: inv.amount,
+        to: merchantAddress,
+        token: alphaUsdToken,
+        memo: inv.invoiceId,
+        feeToken: alphaUsdToken
+      });
+      handlePaymentSuccess(result.receipt.transactionHash);
+      setAutopayNotice({ kind: "success", message: "Autopay payment sent." });
+      if (autopayNoticeTimerRef.current) window.clearTimeout(autopayNoticeTimerRef.current);
+      autopayNoticeTimerRef.current = window.setTimeout(() => {
+        setAutopayNotice(null);
+        autopayNoticeTimerRef.current = null;
+      }, 3e3);
+      await refreshMerchantInvoices();
+      await refreshMobileInvoices();
+    }, [account.address, alphaUsdToken, handlePaymentSuccess, merchantAddress, refreshMerchantInvoices, refreshMobileInvoices]);
     import_react17.default.useEffect(() => {
       if (!account.address) {
         setTransactions([]);
@@ -56326,6 +56847,30 @@ Provided: ${stringify2(envelope)}`);
     const openInvoices = import_react17.default.useMemo(() => {
       return onchainInvoices.filter((inv) => inv.status === 0);
     }, [onchainInvoices]);
+    import_react17.default.useEffect(() => {
+      if (!isAutopayEnabled && autopayScheduleTimerRef.current) {
+        window.clearTimeout(autopayScheduleTimerRef.current);
+        autopayScheduleTimerRef.current = null;
+      }
+    }, [isAutopayEnabled]);
+    import_react17.default.useEffect(() => {
+      if (!isAutopayEnabled || isAutopayBusy) return;
+      if (!account.address || !merchantAddress) return;
+      const pending = openInvoices.find((inv) => !autopayInFlightRef.current.has(String(inv.number)));
+      if (!pending) return;
+      autopayInFlightRef.current.add(String(pending.number));
+      setAutopayNotice({ kind: "success", message: "Autopay scheduled\u2026" });
+      if (autopayScheduleTimerRef.current) window.clearTimeout(autopayScheduleTimerRef.current);
+      autopayScheduleTimerRef.current = window.setTimeout(() => {
+        runAutopay(pending).catch((error) => {
+          console.error("Autopay failed", error);
+          setAutopayNotice({ kind: "error", message: "Autopay failed." });
+        }).finally(() => {
+          autopayInFlightRef.current.delete(String(pending.number));
+          autopayScheduleTimerRef.current = null;
+        });
+      }, 3500);
+    }, [account.address, isAutopayBusy, isAutopayEnabled, merchantAddress, openInvoices, runAutopay]);
     const createReceipt = useWaitForTransactionReceipt({
       hash: createTxHash ?? void 0,
       query: { enabled: Boolean(createTxHash) }
