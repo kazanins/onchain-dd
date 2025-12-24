@@ -1,7 +1,10 @@
 import React from 'react'
-import { useConnection, useConnect, useConnectors, useDisconnect, useReadContract, useReadContracts, useWaitForTransactionReceipt } from 'wagmi'
+import { useConnection, useConnect, useConnectors, useDisconnect, usePublicClient, useReadContract, useReadContracts, useWaitForTransactionReceipt, useWalletClient } from 'wagmi'
 import { Hooks } from 'tempo.ts/wagmi'
-import { formatUnits, hexToString, parseUnits, pad, stringToHex } from 'viem'
+import { Abis, WebCryptoP256 } from 'tempo.ts/viem'
+import { formatUnits, getAddress, hexToString, parseUnits, pad, stringToHex } from 'viem'
+import { Address } from 'ox'
+import { createStore, del, get, set } from 'idb-keyval'
 import { getConfig } from './api'
 import { invoiceRegistryAbi } from './invoiceRegistryAbi'
 
@@ -29,6 +32,20 @@ type TransferItem = {
   txHash: `0x${string}`
 }
 
+type StoredAccessKey = {
+  keyPair: Awaited<ReturnType<typeof WebCryptoP256.createKeyPair>>
+  keyId: `0x${string}`
+  expiry: bigint
+}
+
+const accessKeyStore = createStore('tempo-invoices', 'access-keys')
+const accountKeychainAddress = getAddress('0xAAAAAAAA00000000000000000000000000000000')
+const accessKeySignatureType = 1
+
+export const autopayDebugRef: {
+  current: null | ((enabled: boolean) => void)
+} = { current: null }
+
 function decodeInvoiceId(invoiceId: `0x${string}`) {
   return hexToString(invoiceId).replace(/\u0000/g, '')
 }
@@ -49,6 +66,8 @@ export function App() {
   const connect = useConnect()
   const [connector] = useConnectors()
   const disconnect = useDisconnect()
+  const walletClient = useWalletClient()
+  const publicClient = usePublicClient()
   const [paymentNotice, setPaymentNotice] = React.useState<string | null>(null)
   const paymentTimerRef = React.useRef<number | null>(null)
   const [fundingNotice, setFundingNotice] = React.useState<{
@@ -56,6 +75,11 @@ export function App() {
     message: string
   } | null>(null)
   const fundingTimerRef = React.useRef<number | null>(null)
+  const [autopayNotice, setAutopayNotice] = React.useState<{
+    kind: 'success' | 'error'
+    message: string
+  } | null>(null)
+  const autopayTimerRef = React.useRef<number | null>(null)
   const [copiedId, setCopiedId] = React.useState<string | null>(null)
   const copyTimerRef = React.useRef<number | null>(null)
   const alphaUsdToken = '0x20c0000000000000000000000000000000000001' as const
@@ -72,6 +96,7 @@ export function App() {
   const [isRefreshingMobile, setIsRefreshingMobile] = React.useState(false)
   const [isRefreshingMerchant, setIsRefreshingMerchant] = React.useState(false)
   const [isAutopayEnabled, setIsAutopayEnabled] = React.useState(false)
+  const [isAutopayBusy, setIsAutopayBusy] = React.useState(false)
   const [transactions, setTransactions] = React.useState<TransferItem[]>([])
   const signupRequestedRef = React.useRef(false)
 
@@ -109,6 +134,10 @@ export function App() {
       if (fundingTimerRef.current) {
         window.clearTimeout(fundingTimerRef.current)
         fundingTimerRef.current = null
+      }
+      if (autopayTimerRef.current) {
+        window.clearTimeout(autopayTimerRef.current)
+        autopayTimerRef.current = null
       }
     }
   }, [])
@@ -150,6 +179,72 @@ export function App() {
       memo: inv.invoiceId,
     })
   }, [alphaUsdToken, merchantAddress, sendPayment])
+
+  const handleAutopayToggle = React.useCallback(async (enabled: boolean) => {
+    if (!account.address || !walletClient.data || !publicClient) {
+      setAutopayNotice({
+        kind: 'error',
+        message: 'Wallet not ready. Please sign in again.',
+      })
+      return
+    }
+    setIsAutopayBusy(true)
+    setIsAutopayEnabled(enabled)
+    setAutopayNotice({ kind: 'success', message: 'Requesting passkey…' })
+    try {
+      const keyStorageKey = `autopay:${account.address.toLowerCase()}`
+      if (enabled) {
+        const keyPair = await WebCryptoP256.createKeyPair()
+        const keyId = Address.fromPublicKey(keyPair.publicKey)
+        const expirySeconds = BigInt(Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60)
+
+        const txHash = await walletClient.data.writeContract({
+          address: accountKeychainAddress,
+          abi: Abis.accountKeychain,
+          functionName: 'authorizeKey',
+          args: [keyId, accessKeySignatureType, expirySeconds, false, []],
+          feeToken: alphaUsdToken,
+        })
+        await publicClient.waitForTransactionReceipt({ hash: txHash })
+
+        const stored: StoredAccessKey = {
+          keyPair,
+          keyId,
+          expiry: expirySeconds,
+        }
+        await set(keyStorageKey, stored, accessKeyStore)
+        setAutopayNotice({ kind: 'success', message: 'Autopay enabled.' })
+      } else {
+        const stored = await get<StoredAccessKey>(keyStorageKey, accessKeyStore)
+        if (stored?.keyId) {
+          const txHash = await walletClient.data.writeContract({
+            address: accountKeychainAddress,
+            abi: Abis.accountKeychain,
+            functionName: 'revokeKey',
+            args: [stored.keyId],
+            feeToken: alphaUsdToken,
+          })
+          await publicClient.waitForTransactionReceipt({ hash: txHash })
+          await del(keyStorageKey, accessKeyStore)
+        }
+        setAutopayNotice({ kind: 'success', message: 'Autopay disabled.' })
+      }
+    } catch (error) {
+      console.error('Autopay toggle failed', error)
+      setIsAutopayEnabled(!enabled)
+      setAutopayNotice({
+        kind: 'error',
+        message: 'Autopay action failed. Check the console for details.',
+      })
+    } finally {
+      setIsAutopayBusy(false)
+      if (autopayTimerRef.current) window.clearTimeout(autopayTimerRef.current)
+      autopayTimerRef.current = window.setTimeout(() => {
+        setAutopayNotice(null)
+        autopayTimerRef.current = null
+      }, 3000)
+    }
+  }, [account.address, alphaUsdToken, publicClient, walletClient.data])
 
   const invoiceNumbersQuery = useReadContract({
     address: invoiceRegistryAddress,
@@ -323,17 +418,28 @@ export function App() {
   }, [])
 
   React.useEffect(() => {
+    if (!account.address) {
+      setIsAutopayEnabled(false)
+      return
+    }
+    get<StoredAccessKey>(`autopay:${account.address.toLowerCase()}`, accessKeyStore)
+      .then((stored) => setIsAutopayEnabled(Boolean(stored)))
+      .catch(() => setIsAutopayEnabled(false))
+  }, [account.address])
+  React.useEffect(() => {
+    autopayDebugRef.current = handleAutopayToggle
+    return () => {
+      autopayDebugRef.current = null
+    }
+  }, [handleAutopayToggle])
+
+  React.useEffect(() => {
     if (!account.address || !signupRequestedRef.current) return
     signupRequestedRef.current = false
-    fetch('https://rpc.testnet.tempo.xyz', {
+    fetch('/api/faucet', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'tempo_fundAddress',
-        params: [account.address],
-      }),
+      body: JSON.stringify({ address: account.address }),
     })
       .then((res) => res.json())
       .then((data) => {
@@ -370,7 +476,7 @@ export function App() {
       <div className="pane">
         <div className="phone-shell">
           <div className="phone-screen">
-            {paymentNotice || fundingNotice ? (
+            {paymentNotice || fundingNotice || autopayNotice ? (
               <div className="notice-stack">
                 {paymentNotice ? (
                   <div className="notice">
@@ -389,6 +495,11 @@ export function App() {
                     {fundingNotice.message}
                   </div>
                 ) : null}
+                {autopayNotice ? (
+                  <div className={autopayNotice.kind === 'error' ? 'notice notice-error' : 'notice'}>
+                    {autopayNotice.message}
+                  </div>
+                ) : null}
               </div>
             ) : null}
             {!account.address ? (
@@ -398,6 +509,7 @@ export function App() {
                   <button
                     className="btn btn-primary"
                     onClick={() => {
+                      setIsAutopayEnabled(false)
                       signupRequestedRef.current = false
                       connect.connect({ connector })
                     }}
@@ -487,7 +599,11 @@ export function App() {
                       <input
                         type="checkbox"
                         checked={isAutopayEnabled}
-                        onChange={(event) => setIsAutopayEnabled(event.target.checked)}
+                        disabled={isAutopayBusy}
+                        onChange={(event) => {
+                          if (isAutopayBusy) return
+                          handleAutopayToggle(event.target.checked)
+                        }}
                       />
                       <span className="toggle-slider" aria-hidden="true"></span>
                     </label>

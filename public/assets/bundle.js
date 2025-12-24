@@ -16,11 +16,11 @@
     for (var name in all)
       __defProp(target, name, { get: all[name], enumerable: true });
   };
-  var __copyProps = (to2, from17, except, desc) => {
-    if (from17 && typeof from17 === "object" || typeof from17 === "function") {
-      for (let key of __getOwnPropNames(from17))
+  var __copyProps = (to2, from24, except, desc) => {
+    if (from24 && typeof from24 === "object" || typeof from24 === "function") {
+      for (let key of __getOwnPropNames(from24))
         if (!__hasOwnProp.call(to2, key) && key !== except)
-          __defProp(to2, key, { get: () => from17[key], enumerable: !(desc = __getOwnPropDesc(from17, key)) || desc.enumerable });
+          __defProp(to2, key, { get: () => from24[key], enumerable: !(desc = __getOwnPropDesc(from24, key)) || desc.enumerable });
     }
     return to2;
   };
@@ -21458,7 +21458,7 @@
   });
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/constants/abis.js
-  var multicall3Abi, batchGatewayAbi, universalResolverErrors, universalResolverResolveAbi, universalResolverReverseAbi;
+  var multicall3Abi, batchGatewayAbi, universalResolverErrors, universalResolverResolveAbi, universalResolverReverseAbi, textResolverAbi, addressResolverAbi, erc1271Abi, erc6492SignatureValidatorAbi;
   var init_abis = __esm({
     "node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/constants/abis.js"() {
       multicall3Abi = [
@@ -21706,6 +21706,93 @@
             { type: "address", name: "resolver" },
             { type: "address", name: "reverseResolver" }
           ]
+        }
+      ];
+      textResolverAbi = [
+        {
+          name: "text",
+          type: "function",
+          stateMutability: "view",
+          inputs: [
+            { name: "name", type: "bytes32" },
+            { name: "key", type: "string" }
+          ],
+          outputs: [{ name: "", type: "string" }]
+        }
+      ];
+      addressResolverAbi = [
+        {
+          name: "addr",
+          type: "function",
+          stateMutability: "view",
+          inputs: [{ name: "name", type: "bytes32" }],
+          outputs: [{ name: "", type: "address" }]
+        },
+        {
+          name: "addr",
+          type: "function",
+          stateMutability: "view",
+          inputs: [
+            { name: "name", type: "bytes32" },
+            { name: "coinType", type: "uint256" }
+          ],
+          outputs: [{ name: "", type: "bytes" }]
+        }
+      ];
+      erc1271Abi = [
+        {
+          name: "isValidSignature",
+          type: "function",
+          stateMutability: "view",
+          inputs: [
+            { name: "hash", type: "bytes32" },
+            { name: "signature", type: "bytes" }
+          ],
+          outputs: [{ name: "", type: "bytes4" }]
+        }
+      ];
+      erc6492SignatureValidatorAbi = [
+        {
+          inputs: [
+            {
+              name: "_signer",
+              type: "address"
+            },
+            {
+              name: "_hash",
+              type: "bytes32"
+            },
+            {
+              name: "_signature",
+              type: "bytes"
+            }
+          ],
+          stateMutability: "nonpayable",
+          type: "constructor"
+        },
+        {
+          inputs: [
+            {
+              name: "_signer",
+              type: "address"
+            },
+            {
+              name: "_hash",
+              type: "bytes32"
+            },
+            {
+              name: "_signature",
+              type: "bytes"
+            }
+          ],
+          outputs: [
+            {
+              type: "bool"
+            }
+          ],
+          stateMutability: "nonpayable",
+          type: "function",
+          name: "isValidSig"
         }
       ];
     }
@@ -22249,7 +22336,7 @@
   });
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/errors/encoding.js
-  var IntegerOutOfRangeError, InvalidBytesBooleanError, SizeOverflowError;
+  var IntegerOutOfRangeError, InvalidBytesBooleanError, InvalidHexBooleanError, SizeOverflowError;
   var init_encoding = __esm({
     "node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/errors/encoding.js"() {
       init_base();
@@ -22263,6 +22350,11 @@
           super(`Bytes value "${bytes}" is not a valid boolean. The bytes array must contain a single byte of either a 0 or 1 value.`, {
             name: "InvalidBytesBooleanError"
           });
+        }
+      };
+      InvalidHexBooleanError = class extends BaseError {
+        constructor(hex) {
+          super(`Hex value "${hex}" is not a valid boolean. The hex value must be "0x0" (false) or "0x1" (true).`, { name: "InvalidHexBooleanError" });
         }
       };
       SizeOverflowError = class extends BaseError {
@@ -22316,6 +22408,18 @@
     if (value <= max)
       return value;
     return value - BigInt(`0x${"f".padStart(size6 * 2, "f")}`) - 1n;
+  }
+  function hexToBool(hex_, opts = {}) {
+    let hex = hex_;
+    if (opts.size) {
+      assertSize(hex, { size: opts.size });
+      hex = trim(hex);
+    }
+    if (trim(hex) === "0x00")
+      return false;
+    if (trim(hex) === "0x01")
+      return true;
+    throw new InvalidHexBooleanError(hex);
   }
   function hexToNumber(hex, opts = {}) {
     return Number(hexToBigInt(hex, opts));
@@ -22928,13 +23032,13 @@
     if (checksumAddressCache.has(`${address_}.${chainId}`))
       return checksumAddressCache.get(`${address_}.${chainId}`);
     const hexAddress = chainId ? `${chainId}${address_.toLowerCase()}` : address_.substring(2).toLowerCase();
-    const hash4 = keccak256(stringToBytes(hexAddress), "bytes");
+    const hash5 = keccak256(stringToBytes(hexAddress), "bytes");
     const address = (chainId ? hexAddress.substring(`${chainId}0x`.length) : hexAddress).split("");
     for (let i = 0; i < 40; i += 2) {
-      if (hash4[i >> 1] >> 4 >= 8 && address[i]) {
+      if (hash5[i >> 1] >> 4 >= 8 && address[i]) {
         address[i] = address[i].toUpperCase();
       }
-      if ((hash4[i >> 1] & 15) >= 8 && address[i + 1]) {
+      if ((hash5[i >> 1] & 15) >= 8 && address[i + 1]) {
         address[i + 1] = address[i + 1].toUpperCase();
       }
     }
@@ -23920,7 +24024,7 @@
   function isReceiveSignature(signature) {
     return receiveSignatureRegex.test(signature);
   }
-  var errorSignatureRegex, eventSignatureRegex, functionSignatureRegex, structSignatureRegex, constructorSignatureRegex, fallbackSignatureRegex, receiveSignatureRegex, eventModifiers, functionModifiers;
+  var errorSignatureRegex, eventSignatureRegex, functionSignatureRegex, structSignatureRegex, constructorSignatureRegex, fallbackSignatureRegex, receiveSignatureRegex, modifiers, eventModifiers, functionModifiers;
   var init_signatures = __esm({
     "node_modules/.pnpm/abitype@1.2.3_typescript@5.9.3/node_modules/abitype/dist/esm/human-readable/runtime/signatures.js"() {
       init_regex2();
@@ -23931,6 +24035,12 @@
       constructorSignatureRegex = /^constructor\((?<parameters>.*?)\)(?:\s(?<stateMutability>payable{1}))?$/;
       fallbackSignatureRegex = /^fallback\(\) external(?:\s(?<stateMutability>payable{1}))?$/;
       receiveSignatureRegex = /^receive\(\) external payable$/;
+      modifiers = /* @__PURE__ */ new Set([
+        "memory",
+        "indexed",
+        "storage",
+        "calldata"
+      ]);
       eventModifiers = /* @__PURE__ */ new Set(["indexed"]);
       functionModifiers = /* @__PURE__ */ new Set([
         "calldata",
@@ -23941,10 +24051,24 @@
   });
 
   // node_modules/.pnpm/abitype@1.2.3_typescript@5.9.3/node_modules/abitype/dist/esm/human-readable/errors/abiItem.js
-  var UnknownTypeError, UnknownSolidityTypeError;
+  var InvalidAbiItemError, UnknownTypeError, UnknownSolidityTypeError;
   var init_abiItem = __esm({
     "node_modules/.pnpm/abitype@1.2.3_typescript@5.9.3/node_modules/abitype/dist/esm/human-readable/errors/abiItem.js"() {
       init_errors();
+      InvalidAbiItemError = class extends BaseError2 {
+        constructor({ signature }) {
+          super("Failed to parse ABI item.", {
+            details: `parseAbiItem(${JSON.stringify(signature, null, 2)})`,
+            docsPath: "/api/human#parseabiitem-1"
+          });
+          Object.defineProperty(this, "name", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: "InvalidAbiItemError"
+          });
+        }
+      };
       UnknownTypeError = class extends BaseError2 {
         constructor({ type: type2 }) {
           super("Unknown type.", {
@@ -23977,10 +24101,24 @@
   });
 
   // node_modules/.pnpm/abitype@1.2.3_typescript@5.9.3/node_modules/abitype/dist/esm/human-readable/errors/abiParameter.js
-  var InvalidParameterError, SolidityProtectedKeywordError, InvalidModifierError, InvalidFunctionModifierError, InvalidAbiTypeParameterError;
+  var InvalidAbiParametersError, InvalidParameterError, SolidityProtectedKeywordError, InvalidModifierError, InvalidFunctionModifierError, InvalidAbiTypeParameterError;
   var init_abiParameter = __esm({
     "node_modules/.pnpm/abitype@1.2.3_typescript@5.9.3/node_modules/abitype/dist/esm/human-readable/errors/abiParameter.js"() {
       init_errors();
+      InvalidAbiParametersError = class extends BaseError2 {
+        constructor({ params }) {
+          super("Failed to parse ABI parameters.", {
+            details: `parseAbiParameters(${JSON.stringify(params, null, 2)})`,
+            docsPath: "/api/human#parseabiparameters-1"
+          });
+          Object.defineProperty(this, "name", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: "InvalidAbiParametersError"
+          });
+        }
+      };
       InvalidParameterError = class extends BaseError2 {
         constructor({ param }) {
           super("Invalid ABI parameter.", {
@@ -24526,15 +24664,15 @@
   // node_modules/.pnpm/abitype@1.2.3_typescript@5.9.3/node_modules/abitype/dist/esm/human-readable/parseAbi.js
   function parseAbi(signatures) {
     const structs = parseStructs(signatures);
-    const abi = [];
+    const abi2 = [];
     const length = signatures.length;
     for (let i = 0; i < length; i++) {
       const signature = signatures[i];
       if (isStructSignature(signature))
         continue;
-      abi.push(parseSignature(signature, structs));
+      abi2.push(parseSignature(signature, structs));
     }
-    return abi;
+    return abi2;
   }
   var init_parseAbi = __esm({
     "node_modules/.pnpm/abitype@1.2.3_typescript@5.9.3/node_modules/abitype/dist/esm/human-readable/parseAbi.js"() {
@@ -24544,11 +24682,80 @@
     }
   });
 
+  // node_modules/.pnpm/abitype@1.2.3_typescript@5.9.3/node_modules/abitype/dist/esm/human-readable/parseAbiItem.js
+  function parseAbiItem(signature) {
+    let abiItem;
+    if (typeof signature === "string")
+      abiItem = parseSignature(signature);
+    else {
+      const structs = parseStructs(signature);
+      const length = signature.length;
+      for (let i = 0; i < length; i++) {
+        const signature_ = signature[i];
+        if (isStructSignature(signature_))
+          continue;
+        abiItem = parseSignature(signature_, structs);
+        break;
+      }
+    }
+    if (!abiItem)
+      throw new InvalidAbiItemError({ signature });
+    return abiItem;
+  }
+  var init_parseAbiItem = __esm({
+    "node_modules/.pnpm/abitype@1.2.3_typescript@5.9.3/node_modules/abitype/dist/esm/human-readable/parseAbiItem.js"() {
+      init_abiItem();
+      init_signatures();
+      init_structs();
+      init_utils2();
+    }
+  });
+
+  // node_modules/.pnpm/abitype@1.2.3_typescript@5.9.3/node_modules/abitype/dist/esm/human-readable/parseAbiParameters.js
+  function parseAbiParameters(params) {
+    const abiParameters = [];
+    if (typeof params === "string") {
+      const parameters = splitParameters(params);
+      const length = parameters.length;
+      for (let i = 0; i < length; i++) {
+        abiParameters.push(parseAbiParameter(parameters[i], { modifiers }));
+      }
+    } else {
+      const structs = parseStructs(params);
+      const length = params.length;
+      for (let i = 0; i < length; i++) {
+        const signature = params[i];
+        if (isStructSignature(signature))
+          continue;
+        const parameters = splitParameters(signature);
+        const length2 = parameters.length;
+        for (let k = 0; k < length2; k++) {
+          abiParameters.push(parseAbiParameter(parameters[k], { modifiers, structs }));
+        }
+      }
+    }
+    if (abiParameters.length === 0)
+      throw new InvalidAbiParametersError({ params });
+    return abiParameters;
+  }
+  var init_parseAbiParameters = __esm({
+    "node_modules/.pnpm/abitype@1.2.3_typescript@5.9.3/node_modules/abitype/dist/esm/human-readable/parseAbiParameters.js"() {
+      init_abiParameter();
+      init_signatures();
+      init_structs();
+      init_utils2();
+      init_utils2();
+    }
+  });
+
   // node_modules/.pnpm/abitype@1.2.3_typescript@5.9.3/node_modules/abitype/dist/esm/exports/index.js
   var init_exports = __esm({
     "node_modules/.pnpm/abitype@1.2.3_typescript@5.9.3/node_modules/abitype/dist/esm/exports/index.js"() {
       init_formatAbiItem2();
+      init_formatAbiParameters();
       init_parseAbi();
+      init_parseAbiItem();
+      init_parseAbiParameters();
     }
   });
 
@@ -24650,9 +24857,9 @@
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/abi/getAbiItem.js
   function getAbiItem(parameters) {
-    const { abi, args = [], name } = parameters;
+    const { abi: abi2, args = [], name } = parameters;
     const isSelector = isHex(name, { strict: false });
-    const abiItems = abi.filter((abiItem) => {
+    const abiItems = abi2.filter((abiItem) => {
       if (isSelector) {
         if (abiItem.type === "function")
           return toFunctionSelector(abiItem) === name;
@@ -24771,10 +24978,10 @@
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/abi/decodeFunctionResult.js
   function decodeFunctionResult(parameters) {
-    const { abi, args, functionName, data } = parameters;
-    let abiItem = abi[0];
+    const { abi: abi2, args, functionName, data } = parameters;
+    let abiItem = abi2[0];
     if (functionName) {
-      const item = getAbiItem({ abi, args, name: functionName });
+      const item = getAbiItem({ abi: abi2, args, name: functionName });
       if (!item)
         throw new AbiFunctionNotFoundError(functionName, { docsPath });
       abiItem = item;
@@ -24802,11 +25009,11 @@
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/abi/prepareEncodeFunctionData.js
   function prepareEncodeFunctionData(parameters) {
-    const { abi, args, functionName } = parameters;
-    let abiItem = abi[0];
+    const { abi: abi2, args, functionName } = parameters;
+    let abiItem = abi2[0];
     if (functionName) {
       const item = getAbiItem({
-        abi,
+        abi: abi2,
         args,
         name: functionName
       });
@@ -24835,12 +25042,12 @@
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/abi/encodeFunctionData.js
   function encodeFunctionData(parameters) {
     const { args } = parameters;
-    const { abi, functionName } = (() => {
+    const { abi: abi2, functionName } = (() => {
       if (parameters.abi.length === 1 && parameters.functionName?.startsWith("0x"))
         return parameters;
       return prepareEncodeFunctionData(parameters);
     })();
-    const abiItem = abi[0];
+    const abiItem = abi2[0];
     const signature = functionName;
     const data = "inputs" in abiItem && abiItem.inputs ? encodeAbiParameters(abiItem.inputs, args ?? []) : void 0;
     return concatHex([signature, data ?? "0x"]);
@@ -24985,11 +25192,11 @@
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/abi/decodeErrorResult.js
   function decodeErrorResult(parameters) {
-    const { abi, data } = parameters;
+    const { abi: abi2, data } = parameters;
     const signature = slice(data, 0, 4);
     if (signature === "0x")
       throw new AbiDecodingZeroDataError();
-    const abi_ = [...abi || [], solidityError, solidityPanic];
+    const abi_ = [...abi2 || [], solidityError, solidityPanic];
     const abiItem = abi_.find((x) => x.type === "error" && signature === toFunctionSelector(formatAbiItem(x)));
     if (!abiItem)
       throw new AbiErrorSignatureNotFoundError(signature, {
@@ -25230,7 +25437,7 @@
         }
       };
       TransactionNotFoundError = class extends BaseError {
-        constructor({ blockHash, blockNumber, blockTag, hash: hash4, index: index3 }) {
+        constructor({ blockHash, blockNumber, blockTag, hash: hash5, index: index3 }) {
           let identifier = "Transaction";
           if (blockTag && index3 !== void 0)
             identifier = `Transaction at block time "${blockTag}" at index "${index3}"`;
@@ -25238,16 +25445,16 @@
             identifier = `Transaction at block hash "${blockHash}" at index "${index3}"`;
           if (blockNumber && index3 !== void 0)
             identifier = `Transaction at block number "${blockNumber}" at index "${index3}"`;
-          if (hash4)
-            identifier = `Transaction with hash "${hash4}"`;
+          if (hash5)
+            identifier = `Transaction with hash "${hash5}"`;
           super(`${identifier} could not be found.`, {
             name: "TransactionNotFoundError"
           });
         }
       };
       TransactionReceiptNotFoundError = class extends BaseError {
-        constructor({ hash: hash4 }) {
-          super(`Transaction receipt with hash "${hash4}" could not be found. The Transaction may not be processed on a block yet.`, {
+        constructor({ hash: hash5 }) {
+          super(`Transaction receipt with hash "${hash5}" could not be found. The Transaction may not be processed on a block yet.`, {
             name: "TransactionReceiptNotFoundError"
           });
         }
@@ -25274,8 +25481,8 @@
         }
       };
       WaitForTransactionReceiptTimeoutError = class extends BaseError {
-        constructor({ hash: hash4 }) {
-          super(`Timed out while waiting for transaction with hash "${hash4}" to be confirmed.`, { name: "WaitForTransactionReceiptTimeoutError" });
+        constructor({ hash: hash5 }) {
+          super(`Timed out while waiting for transaction with hash "${hash5}" to be confirmed.`, { name: "WaitForTransactionReceiptTimeoutError" });
         }
       };
     }
@@ -25345,8 +25552,8 @@ ${prettyStateOverride(stateOverride)}`;
         }
       };
       ContractFunctionExecutionError = class extends BaseError {
-        constructor(cause, { abi, args, contractAddress, docsPath: docsPath8, functionName, sender }) {
-          const abiItem = getAbiItem({ abi, args, name: functionName });
+        constructor(cause, { abi: abi2, args, contractAddress, docsPath: docsPath8, functionName, sender }) {
+          const abiItem = getAbiItem({ abi: abi2, args, name: functionName });
           const formattedArgs = abiItem ? formatAbiItemWithArgs({
             abiItem,
             args,
@@ -25412,7 +25619,7 @@ ${prettyStateOverride(stateOverride)}`;
             writable: true,
             value: void 0
           });
-          this.abi = abi;
+          this.abi = abi2;
           this.args = args;
           this.cause = cause;
           this.contractAddress = contractAddress;
@@ -25421,14 +25628,14 @@ ${prettyStateOverride(stateOverride)}`;
         }
       };
       ContractFunctionRevertedError = class extends BaseError {
-        constructor({ abi, data, functionName, message }) {
+        constructor({ abi: abi2, data, functionName, message }) {
           let cause;
           let decodedData;
           let metaMessages;
           let reason;
           if (data && data !== "0x") {
             try {
-              decodedData = decodeErrorResult({ abi, data });
+              decodedData = decodeErrorResult({ abi: abi2, data });
               const { abiItem, errorName, args: errorArgs } = decodedData;
               if (errorName === "Error") {
                 reason = errorArgs[0];
@@ -25548,9 +25755,9 @@ ${prettyStateOverride(stateOverride)}`;
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/abi/decodeFunctionData.js
   function decodeFunctionData(parameters) {
-    const { abi, data } = parameters;
+    const { abi: abi2, data } = parameters;
     const signature = slice(data, 0, 4);
-    const description = abi.find((x) => x.type === "function" && signature === toFunctionSelector(formatAbiItem(x)));
+    const description = abi2.find((x) => x.type === "function" && signature === toFunctionSelector(formatAbiItem(x)));
     if (!description)
       throw new AbiFunctionSignatureNotFoundError(signature, {
         docsPath: "/docs/contract/decodeFunctionData"
@@ -25572,10 +25779,10 @@ ${prettyStateOverride(stateOverride)}`;
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/abi/encodeErrorResult.js
   function encodeErrorResult(parameters) {
-    const { abi, errorName, args } = parameters;
-    let abiItem = abi[0];
+    const { abi: abi2, errorName, args } = parameters;
+    let abiItem = abi2[0];
     if (errorName) {
-      const item = getAbiItem({ abi, args, name: errorName });
+      const item = getAbiItem({ abi: abi2, args, name: errorName });
       if (!item)
         throw new AbiErrorNotFoundError(errorName, { docsPath: docsPath3 });
       abiItem = item;
@@ -25607,10 +25814,10 @@ ${prettyStateOverride(stateOverride)}`;
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/abi/encodeFunctionResult.js
   function encodeFunctionResult(parameters) {
-    const { abi, functionName, result } = parameters;
-    let abiItem = abi[0];
+    const { abi: abi2, functionName, result } = parameters;
+    let abiItem = abi2[0];
     if (functionName) {
-      const item = getAbiItem({ abi, name: functionName });
+      const item = getAbiItem({ abi: abi2, name: functionName });
       if (!item)
         throw new AbiFunctionNotFoundError(functionName, { docsPath: docsPath4 });
       abiItem = item;
@@ -26858,6 +27065,36 @@ ${prettyStateOverride(stateOverride)}`;
     const hex = fromBytes(bytes, options);
     return toBigInt(hex, options);
   }
+  function toBoolean(bytes, options = {}) {
+    const { size: size6 } = options;
+    let bytes_ = bytes;
+    if (typeof size6 !== "undefined") {
+      assertSize2(bytes_, size6);
+      bytes_ = trimLeft(bytes_);
+    }
+    if (bytes_.length > 1 || bytes_[0] > 1)
+      throw new InvalidBytesBooleanError2(bytes_);
+    return Boolean(bytes_[0]);
+  }
+  function toNumber2(bytes, options = {}) {
+    const { size: size6 } = options;
+    if (typeof size6 !== "undefined")
+      assertSize2(bytes, size6);
+    const hex = fromBytes(bytes, options);
+    return toNumber(hex, options);
+  }
+  function toString(bytes, options = {}) {
+    const { size: size6 } = options;
+    let bytes_ = bytes;
+    if (typeof size6 !== "undefined") {
+      assertSize2(bytes_, size6);
+      bytes_ = trimRight(bytes_);
+    }
+    return decoder.decode(bytes_);
+  }
+  function trimLeft(value) {
+    return trim2(value, { dir: "left" });
+  }
   function trimRight(value) {
     return trim2(value, { dir: "right" });
   }
@@ -26869,7 +27106,7 @@ ${prettyStateOverride(stateOverride)}`;
       return false;
     }
   }
-  var encoder3, InvalidBytesTypeError, SizeOverflowError2, SliceOffsetOutOfBoundsError2, SizeExceedsPaddingSizeError2;
+  var decoder, encoder3, InvalidBytesBooleanError2, InvalidBytesTypeError, SizeOverflowError2, SliceOffsetOutOfBoundsError2, SizeExceedsPaddingSizeError2;
   var init_Bytes = __esm({
     "node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/Bytes.js"() {
       init_Errors();
@@ -26877,7 +27114,23 @@ ${prettyStateOverride(stateOverride)}`;
       init_bytes();
       init_hex();
       init_Json();
+      decoder = /* @__PURE__ */ new TextDecoder();
       encoder3 = /* @__PURE__ */ new TextEncoder();
+      InvalidBytesBooleanError2 = class extends BaseError3 {
+        constructor(bytes) {
+          super(`Bytes value \`${bytes}\` is not a valid boolean.`, {
+            metaMessages: [
+              "The bytes array must contain a single byte of either a `0` or `1` value."
+            ]
+          });
+          Object.defineProperty(this, "name", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: "Bytes.InvalidBytesBooleanError"
+          });
+        }
+      };
       InvalidBytesTypeError = class extends BaseError3 {
         constructor(value) {
           super(`Value \`${typeof value === "object" ? stringify2(value) : value}\` of type \`${typeof value}\` is an invalid Bytes value.`, {
@@ -26951,6 +27204,14 @@ ${prettyStateOverride(stateOverride)}`;
       return fromBytes(new Uint8Array(value));
     return value;
   }
+  function fromBoolean(value, options = {}) {
+    const hex = `0x${Number(value)}`;
+    if (typeof options.size === "number") {
+      assertSize3(hex, options.size);
+      return padLeft(hex, options.size);
+    }
+    return hex;
+  }
   function fromBytes(value, options = {}) {
     let string = "";
     for (let i = 0; i < value.length; i++)
@@ -27014,7 +27275,7 @@ ${prettyStateOverride(stateOverride)}`;
   function size3(value) {
     return Math.ceil((value.length - 2) / 2);
   }
-  function trimLeft(value) {
+  function trimLeft2(value) {
     return trim3(value, { dir: "left" });
   }
   function toBigInt(hex, options = {}) {
@@ -27037,7 +27298,7 @@ ${prettyStateOverride(stateOverride)}`;
       return Number(hex);
     return Number(toBigInt(hex, options));
   }
-  function toString(hex, options = {}) {
+  function toString2(hex, options = {}) {
     const { size: size6 } = options;
     let bytes = fromHex(hex);
     if (size6) {
@@ -27213,21 +27474,22 @@ ${prettyStateOverride(stateOverride)}`;
   });
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/constants/contracts.js
-  var deploylessCallViaBytecodeBytecode, deploylessCallViaFactoryBytecode, multicall3Bytecode;
+  var deploylessCallViaBytecodeBytecode, deploylessCallViaFactoryBytecode, erc6492SignatureValidatorByteCode, multicall3Bytecode;
   var init_contracts = __esm({
     "node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/constants/contracts.js"() {
       deploylessCallViaBytecodeBytecode = "0x608060405234801561001057600080fd5b5060405161018e38038061018e83398101604081905261002f91610124565b6000808351602085016000f59050803b61004857600080fd5b6000808351602085016000855af16040513d6000823e81610067573d81fd5b3d81f35b634e487b7160e01b600052604160045260246000fd5b600082601f83011261009257600080fd5b81516001600160401b038111156100ab576100ab61006b565b604051601f8201601f19908116603f011681016001600160401b03811182821017156100d9576100d961006b565b6040528181528382016020018510156100f157600080fd5b60005b82811015610110576020818601810151838301820152016100f4565b506000918101602001919091529392505050565b6000806040838503121561013757600080fd5b82516001600160401b0381111561014d57600080fd5b61015985828601610081565b602085015190935090506001600160401b0381111561017757600080fd5b61018385828601610081565b915050925092905056fe";
       deploylessCallViaFactoryBytecode = "0x608060405234801561001057600080fd5b506040516102c03803806102c083398101604081905261002f916101e6565b836001600160a01b03163b6000036100e457600080836001600160a01b03168360405161005c9190610270565b6000604051808303816000865af19150503d8060008114610099576040519150601f19603f3d011682016040523d82523d6000602084013e61009e565b606091505b50915091508115806100b857506001600160a01b0386163b155b156100e1578060405163101bb98d60e01b81526004016100d8919061028c565b60405180910390fd5b50505b6000808451602086016000885af16040513d6000823e81610103573d81fd5b3d81f35b80516001600160a01b038116811461011e57600080fd5b919050565b634e487b7160e01b600052604160045260246000fd5b60005b8381101561015457818101518382015260200161013c565b50506000910152565b600082601f83011261016e57600080fd5b81516001600160401b0381111561018757610187610123565b604051601f8201601f19908116603f011681016001600160401b03811182821017156101b5576101b5610123565b6040528181528382016020018510156101cd57600080fd5b6101de826020830160208701610139565b949350505050565b600080600080608085870312156101fc57600080fd5b61020585610107565b60208601519094506001600160401b0381111561022157600080fd5b61022d8782880161015d565b93505061023c60408601610107565b60608601519092506001600160401b0381111561025857600080fd5b6102648782880161015d565b91505092959194509250565b60008251610282818460208701610139565b9190910192915050565b60208152600082518060208401526102ab816040850160208701610139565b601f01601f1916919091016040019291505056fe";
+      erc6492SignatureValidatorByteCode = "0x608060405234801561001057600080fd5b5060405161069438038061069483398101604081905261002f9161051e565b600061003c848484610048565b9050806000526001601ff35b60007f64926492649264926492649264926492649264926492649264926492649264926100748361040c565b036101e7576000606080848060200190518101906100929190610577565b60405192955090935091506000906001600160a01b038516906100b69085906105dd565b6000604051808303816000865af19150503d80600081146100f3576040519150601f19603f3d011682016040523d82523d6000602084013e6100f8565b606091505b50509050876001600160a01b03163b60000361016057806101605760405162461bcd60e51b815260206004820152601e60248201527f5369676e617475726556616c696461746f723a206465706c6f796d656e74000060448201526064015b60405180910390fd5b604051630b135d3f60e11b808252906001600160a01b038a1690631626ba7e90610190908b9087906004016105f9565b602060405180830381865afa1580156101ad573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906101d19190610633565b6001600160e01b03191614945050505050610405565b6001600160a01b0384163b1561027a57604051630b135d3f60e11b808252906001600160a01b03861690631626ba7e9061022790879087906004016105f9565b602060405180830381865afa158015610244573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906102689190610633565b6001600160e01b031916149050610405565b81516041146102df5760405162461bcd60e51b815260206004820152603a602482015260008051602061067483398151915260448201527f3a20696e76616c6964207369676e6174757265206c656e6774680000000000006064820152608401610157565b6102e7610425565b5060208201516040808401518451859392600091859190811061030c5761030c61065d565b016020015160f81c9050601b811480159061032b57508060ff16601c14155b1561038c5760405162461bcd60e51b815260206004820152603b602482015260008051602061067483398151915260448201527f3a20696e76616c6964207369676e617475726520762076616c756500000000006064820152608401610157565b60408051600081526020810180835289905260ff83169181019190915260608101849052608081018390526001600160a01b0389169060019060a0016020604051602081039080840390855afa1580156103ea573d6000803e3d6000fd5b505050602060405103516001600160a01b0316149450505050505b9392505050565b600060208251101561041d57600080fd5b508051015190565b60405180606001604052806003906020820280368337509192915050565b6001600160a01b038116811461045857600080fd5b50565b634e487b7160e01b600052604160045260246000fd5b60005b8381101561048c578181015183820152602001610474565b50506000910152565b600082601f8301126104a657600080fd5b81516001600160401b038111156104bf576104bf61045b565b604051601f8201601f19908116603f011681016001600160401b03811182821017156104ed576104ed61045b565b60405281815283820160200185101561050557600080fd5b610516826020830160208701610471565b949350505050565b60008060006060848603121561053357600080fd5b835161053e81610443565b6020850151604086015191945092506001600160401b0381111561056157600080fd5b61056d86828701610495565b9150509250925092565b60008060006060848603121561058c57600080fd5b835161059781610443565b60208501519093506001600160401b038111156105b357600080fd5b6105bf86828701610495565b604086015190935090506001600160401b0381111561056157600080fd5b600082516105ef818460208701610471565b9190910192915050565b828152604060208201526000825180604084015261061e816060850160208701610471565b601f01601f1916919091016060019392505050565b60006020828403121561064557600080fd5b81516001600160e01b03198116811461040557600080fd5b634e487b7160e01b600052603260045260246000fdfe5369676e617475726556616c696461746f72237265636f7665725369676e6572";
       multicall3Bytecode = "0x608060405234801561001057600080fd5b506115b9806100206000396000f3fe6080604052600436106100f35760003560e01c80634d2301cc1161008a578063a8b0574e11610059578063a8b0574e14610325578063bce38bd714610350578063c3077fa914610380578063ee82ac5e146103b2576100f3565b80634d2301cc1461026257806372425d9d1461029f57806382ad56cb146102ca57806386d516e8146102fa576100f3565b80633408e470116100c65780633408e470146101af578063399542e9146101da5780633e64a6961461020c57806342cbb15c14610237576100f3565b80630f28c97d146100f8578063174dea7114610123578063252dba421461015357806327e86d6e14610184575b600080fd5b34801561010457600080fd5b5061010d6103ef565b60405161011a9190610c0a565b60405180910390f35b61013d60048036038101906101389190610c94565b6103f7565b60405161014a9190610e94565b60405180910390f35b61016d60048036038101906101689190610f0c565b610615565b60405161017b92919061101b565b60405180910390f35b34801561019057600080fd5b506101996107ab565b6040516101a69190611064565b60405180910390f35b3480156101bb57600080fd5b506101c46107b7565b6040516101d19190610c0a565b60405180910390f35b6101f460048036038101906101ef91906110ab565b6107bf565b6040516102039392919061110b565b60405180910390f35b34801561021857600080fd5b506102216107e1565b60405161022e9190610c0a565b60405180910390f35b34801561024357600080fd5b5061024c6107e9565b6040516102599190610c0a565b60405180910390f35b34801561026e57600080fd5b50610289600480360381019061028491906111a7565b6107f1565b6040516102969190610c0a565b60405180910390f35b3480156102ab57600080fd5b506102b4610812565b6040516102c19190610c0a565b60405180910390f35b6102e460048036038101906102df919061122a565b61081a565b6040516102f19190610e94565b60405180910390f35b34801561030657600080fd5b5061030f6109e4565b60405161031c9190610c0a565b60405180910390f35b34801561033157600080fd5b5061033a6109ec565b6040516103479190611286565b60405180910390f35b61036a600480360381019061036591906110ab565b6109f4565b6040516103779190610e94565b60405180910390f35b61039a60048036038101906103959190610f0c565b610ba6565b6040516103a99392919061110b565b60405180910390f35b3480156103be57600080fd5b506103d960048036038101906103d491906112cd565b610bca565b6040516103e69190611064565b60405180910390f35b600042905090565b60606000808484905090508067ffffffffffffffff81111561041c5761041b6112fa565b5b60405190808252806020026020018201604052801561045557816020015b610442610bd5565b81526020019060019003908161043a5790505b5092503660005b828110156105c957600085828151811061047957610478611329565b5b6020026020010151905087878381811061049657610495611329565b5b90506020028101906104a89190611367565b925060008360400135905080860195508360000160208101906104cb91906111a7565b73ffffffffffffffffffffffffffffffffffffffff16818580606001906104f2919061138f565b604051610500929190611431565b60006040518083038185875af1925050503d806000811461053d576040519150601f19603f3d011682016040523d82523d6000602084013e610542565b606091505b5083600001846020018290528215151515815250505081516020850135176105bc577f08c379a000000000000000000000000000000000000000000000000000000000600052602060045260176024527f4d756c746963616c6c333a2063616c6c206661696c656400000000000000000060445260846000fd5b826001019250505061045c565b5082341461060c576040517f08c379a0000000000000000000000000000000000000000000000000000000008152600401610603906114a7565b60405180910390fd5b50505092915050565b6000606043915060008484905090508067ffffffffffffffff81111561063e5761063d6112fa565b5b60405190808252806020026020018201604052801561067157816020015b606081526020019060019003908161065c5790505b5091503660005b828110156107a157600087878381811061069557610694611329565b5b90506020028101906106a791906114c7565b92508260000160208101906106bc91906111a7565b73ffffffffffffffffffffffffffffffffffffffff168380602001906106e2919061138f565b6040516106f0929190611431565b6000604051808303816000865af19150503d806000811461072d576040519150601f19603f3d011682016040523d82523d6000602084013e610732565b606091505b5086848151811061074657610745611329565b5b60200260200101819052819250505080610795576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040161078c9061153b565b60405180910390fd5b81600101915050610678565b5050509250929050565b60006001430340905090565b600046905090565b6000806060439250434091506107d68686866109f4565b905093509350939050565b600048905090565b600043905090565b60008173ffffffffffffffffffffffffffffffffffffffff16319050919050565b600044905090565b606060008383905090508067ffffffffffffffff81111561083e5761083d6112fa565b5b60405190808252806020026020018201604052801561087757816020015b610864610bd5565b81526020019060019003908161085c5790505b5091503660005b828110156109db57600084828151811061089b5761089a611329565b5b602002602001015190508686838181106108b8576108b7611329565b5b90506020028101906108ca919061155b565b92508260000160208101906108df91906111a7565b73ffffffffffffffffffffffffffffffffffffffff16838060400190610905919061138f565b604051610913929190611431565b6000604051808303816000865af19150503d8060008114610950576040519150601f19603f3d011682016040523d82523d6000602084013e610955565b606091505b5082600001836020018290528215151515815250505080516020840135176109cf577f08c379a000000000000000000000000000000000000000000000000000000000600052602060045260176024527f4d756c746963616c6c333a2063616c6c206661696c656400000000000000000060445260646000fd5b8160010191505061087e565b50505092915050565b600045905090565b600041905090565b606060008383905090508067ffffffffffffffff811115610a1857610a176112fa565b5b604051908082528060200260200182016040528015610a5157816020015b610a3e610bd5565b815260200190600190039081610a365790505b5091503660005b82811015610b9c576000848281518110610a7557610a74611329565b5b60200260200101519050868683818110610a9257610a91611329565b5b9050602002810190610aa491906114c7565b9250826000016020810190610ab991906111a7565b73ffffffffffffffffffffffffffffffffffffffff16838060200190610adf919061138f565b604051610aed929190611431565b6000604051808303816000865af19150503d8060008114610b2a576040519150601f19603f3d011682016040523d82523d6000602084013e610b2f565b606091505b508260000183602001829052821515151581525050508715610b90578060000151610b8f576040517f08c379a0000000000000000000000000000000000000000000000000000000008152600401610b869061153b565b60405180910390fd5b5b81600101915050610a58565b5050509392505050565b6000806060610bb7600186866107bf565b8093508194508295505050509250925092565b600081409050919050565b6040518060400160405280600015158152602001606081525090565b6000819050919050565b610c0481610bf1565b82525050565b6000602082019050610c1f6000830184610bfb565b92915050565b600080fd5b600080fd5b600080fd5b600080fd5b600080fd5b60008083601f840112610c5457610c53610c2f565b5b8235905067ffffffffffffffff811115610c7157610c70610c34565b5b602083019150836020820283011115610c8d57610c8c610c39565b5b9250929050565b60008060208385031215610cab57610caa610c25565b5b600083013567ffffffffffffffff811115610cc957610cc8610c2a565b5b610cd585828601610c3e565b92509250509250929050565b600081519050919050565b600082825260208201905092915050565b6000819050602082019050919050565b60008115159050919050565b610d2281610d0d565b82525050565b600081519050919050565b600082825260208201905092915050565b60005b83811015610d62578082015181840152602081019050610d47565b83811115610d71576000848401525b50505050565b6000601f19601f8301169050919050565b6000610d9382610d28565b610d9d8185610d33565b9350610dad818560208601610d44565b610db681610d77565b840191505092915050565b6000604083016000830151610dd96000860182610d19565b5060208301518482036020860152610df18282610d88565b9150508091505092915050565b6000610e0a8383610dc1565b905092915050565b6000602082019050919050565b6000610e2a82610ce1565b610e348185610cec565b935083602082028501610e4685610cfd565b8060005b85811015610e825784840389528151610e638582610dfe565b9450610e6e83610e12565b925060208a01995050600181019050610e4a565b50829750879550505050505092915050565b60006020820190508181036000830152610eae8184610e1f565b905092915050565b60008083601f840112610ecc57610ecb610c2f565b5b8235905067ffffffffffffffff811115610ee957610ee8610c34565b5b602083019150836020820283011115610f0557610f04610c39565b5b9250929050565b60008060208385031215610f2357610f22610c25565b5b600083013567ffffffffffffffff811115610f4157610f40610c2a565b5b610f4d85828601610eb6565b92509250509250929050565b600081519050919050565b600082825260208201905092915050565b6000819050602082019050919050565b6000610f918383610d88565b905092915050565b6000602082019050919050565b6000610fb182610f59565b610fbb8185610f64565b935083602082028501610fcd85610f75565b8060005b858110156110095784840389528151610fea8582610f85565b9450610ff583610f99565b925060208a01995050600181019050610fd1565b50829750879550505050505092915050565b60006040820190506110306000830185610bfb565b81810360208301526110428184610fa6565b90509392505050565b6000819050919050565b61105e8161104b565b82525050565b60006020820190506110796000830184611055565b92915050565b61108881610d0d565b811461109357600080fd5b50565b6000813590506110a58161107f565b92915050565b6000806000604084860312156110c4576110c3610c25565b5b60006110d286828701611096565b935050602084013567ffffffffffffffff8111156110f3576110f2610c2a565b5b6110ff86828701610eb6565b92509250509250925092565b60006060820190506111206000830186610bfb565b61112d6020830185611055565b818103604083015261113f8184610e1f565b9050949350505050565b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b600061117482611149565b9050919050565b61118481611169565b811461118f57600080fd5b50565b6000813590506111a18161117b565b92915050565b6000602082840312156111bd576111bc610c25565b5b60006111cb84828501611192565b91505092915050565b60008083601f8401126111ea576111e9610c2f565b5b8235905067ffffffffffffffff81111561120757611206610c34565b5b60208301915083602082028301111561122357611222610c39565b5b9250929050565b6000806020838503121561124157611240610c25565b5b600083013567ffffffffffffffff81111561125f5761125e610c2a565b5b61126b858286016111d4565b92509250509250929050565b61128081611169565b82525050565b600060208201905061129b6000830184611277565b92915050565b6112aa81610bf1565b81146112b557600080fd5b50565b6000813590506112c7816112a1565b92915050565b6000602082840312156112e3576112e2610c25565b5b60006112f1848285016112b8565b91505092915050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b7f4e487b7100000000000000000000000000000000000000000000000000000000600052603260045260246000fd5b600080fd5b600080fd5b600080fd5b60008235600160800383360303811261138357611382611358565b5b80830191505092915050565b600080833560016020038436030381126113ac576113ab611358565b5b80840192508235915067ffffffffffffffff8211156113ce576113cd61135d565b5b6020830192506001820236038313156113ea576113e9611362565b5b509250929050565b600081905092915050565b82818337600083830152505050565b600061141883856113f2565b93506114258385846113fd565b82840190509392505050565b600061143e82848661140c565b91508190509392505050565b600082825260208201905092915050565b7f4d756c746963616c6c333a2076616c7565206d69736d61746368000000000000600082015250565b6000611491601a8361144a565b915061149c8261145b565b602082019050919050565b600060208201905081810360008301526114c081611484565b9050919050565b6000823560016040038336030381126114e3576114e2611358565b5b80830191505092915050565b7f4d756c746963616c6c333a2063616c6c206661696c6564000000000000000000600082015250565b600061152560178361144a565b9150611530826114ef565b602082019050919050565b6000602082019050818103600083015261155481611518565b9050919050565b60008235600160600383360303811261157757611576611358565b5b8083019150509291505056fea264697066735822122020c1bc9aacf8e4a6507193432a895a8e77094f45a1395583f07b24e860ef06cd64736f6c634300080c0033";
     }
   });
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/abi/encodeDeployData.js
   function encodeDeployData(parameters) {
-    const { abi, args, bytecode } = parameters;
+    const { abi: abi2, args, bytecode } = parameters;
     if (!args || args.length === 0)
       return bytecode;
-    const description = abi.find((x) => "type" in x && x.type === "constructor");
+    const description = abi2.find((x) => "type" in x && x.type === "constructor");
     if (!description)
       throw new AbiConstructorNotFoundError({ docsPath: docsPath5 });
     if (!("inputs" in description))
@@ -28841,24 +29103,24 @@ ${prettyStateOverride(stateOverride)}`;
     "node_modules/.pnpm/@noble+hashes@1.8.0/node_modules/@noble/hashes/esm/hmac.js"() {
       init_utils();
       HMAC = class extends Hash {
-        constructor(hash4, _key) {
+        constructor(hash5, _key) {
           super();
           this.finished = false;
           this.destroyed = false;
-          ahash(hash4);
+          ahash(hash5);
           const key = toBytes2(_key);
-          this.iHash = hash4.create();
+          this.iHash = hash5.create();
           if (typeof this.iHash.update !== "function")
             throw new Error("Expected instance of class which extends utils.Hash");
           this.blockLen = this.iHash.blockLen;
           this.outputLen = this.iHash.outputLen;
           const blockLen = this.blockLen;
           const pad5 = new Uint8Array(blockLen);
-          pad5.set(key.length > blockLen ? hash4.create().update(key).digest() : key);
+          pad5.set(key.length > blockLen ? hash5.create().update(key).digest() : key);
           for (let i = 0; i < pad5.length; i++)
             pad5[i] ^= 54;
           this.iHash.update(pad5);
-          this.oHash = hash4.create();
+          this.oHash = hash5.create();
           for (let i = 0; i < pad5.length; i++)
             pad5[i] ^= 54 ^ 92;
           this.oHash.update(pad5);
@@ -28904,8 +29166,8 @@ ${prettyStateOverride(stateOverride)}`;
           this.iHash.destroy();
         }
       };
-      hmac = (hash4, key, message) => new HMAC(hash4, key).update(message).digest();
-      hmac.create = (hash4, key) => new HMAC(hash4, key);
+      hmac = (hash5, key, message) => new HMAC(hash5, key).update(message).digest();
+      hmac.create = (hash5, key) => new HMAC(hash5, key);
     }
   });
 
@@ -29945,7 +30207,7 @@ ${prettyStateOverride(stateOverride)}`;
     function normalizeS(s) {
       return isBiggerThanHalfOrder(s) ? modN2(-s) : s;
     }
-    const slcNum = (b, from17, to2) => bytesToNumberBE(b.slice(from17, to2));
+    const slcNum = (b, from24, to2) => bytesToNumberBE(b.slice(from24, to2));
     class Signature {
       constructor(r, s, recovery) {
         aInRange("r", r, _1n5, CURVE_ORDER);
@@ -30096,14 +30358,14 @@ ${prettyStateOverride(stateOverride)}`;
     function prepSig(msgHash, privateKey, opts = defaultSigOpts) {
       if (["recovered", "canonical"].some((k) => k in opts))
         throw new Error("sign() legacy options not supported");
-      const { hash: hash4, randomBytes: randomBytes2 } = CURVE;
+      const { hash: hash5, randomBytes: randomBytes2 } = CURVE;
       let { lowS, prehash, extraEntropy: ent } = opts;
       if (lowS == null)
         lowS = true;
       msgHash = ensureBytes("msgHash", msgHash);
       validateSigVerOpts(opts);
       if (prehash)
-        msgHash = ensureBytes("prehashed msgHash", hash4(msgHash));
+        msgHash = ensureBytes("prehashed msgHash", hash5(msgHash));
       const h1int = bits2int_modN(msgHash);
       const d = normPrivateKeyToScalar(privateKey);
       const seedArgs = [int2octets(d), int2octets(h1int)];
@@ -30426,15 +30688,15 @@ ${prettyStateOverride(stateOverride)}`;
   });
 
   // node_modules/.pnpm/@noble+curves@1.9.1/node_modules/@noble/curves/esm/_shortw_utils.js
-  function getHash(hash4) {
+  function getHash(hash5) {
     return {
-      hash: hash4,
-      hmac: (key, ...msgs) => hmac(hash4, key, concatBytes(...msgs)),
+      hash: hash5,
+      hmac: (key, ...msgs) => hmac(hash5, key, concatBytes(...msgs)),
       randomBytes
     };
   }
   function createCurve(curveDef, defHash) {
-    const create6 = (hash4) => weierstrass({ ...curveDef, ...getHash(hash4) });
+    const create6 = (hash5) => weierstrass({ ...curveDef, ...getHash(hash5) });
     return { ...create6(defHash), create: create6 };
   }
   var init_shortw_utils = __esm({
@@ -30512,7 +30774,7 @@ ${prettyStateOverride(stateOverride)}`;
       k: "isSafeInteger",
       hash: "hash"
     });
-    const { p, k, m, hash: hash4, expand, DST: _DST } = options;
+    const { p, k, m, hash: hash5, expand, DST: _DST } = options;
     abytes2(msg);
     anum(count);
     const DST = typeof _DST === "string" ? utf8ToBytes2(_DST) : _DST;
@@ -30521,9 +30783,9 @@ ${prettyStateOverride(stateOverride)}`;
     const len_in_bytes = count * m * L;
     let prb;
     if (expand === "xmd") {
-      prb = expand_message_xmd(msg, DST, len_in_bytes, hash4);
+      prb = expand_message_xmd(msg, DST, len_in_bytes, hash5);
     } else if (expand === "xof") {
-      prb = expand_message_xof(msg, DST, len_in_bytes, k, hash4);
+      prb = expand_message_xof(msg, DST, len_in_bytes, k, hash5);
     } else if (expand === "_internal_pass") {
       prb = msg;
     } else {
@@ -31293,7 +31555,7 @@ ${prettyStateOverride(stateOverride)}`;
             },
             [subscribe, value, getSnapshot]
           );
-          useEffect13(
+          useEffect14(
             function() {
               checkIfSnapshotChanged(inst) && forceUpdate({ inst });
               return subscribe(function() {
@@ -31319,7 +31581,7 @@ ${prettyStateOverride(stateOverride)}`;
           return getSnapshot();
         }
         "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-        var React9 = require_react(), objectIs = "function" === typeof Object.is ? Object.is : is, useState4 = React9.useState, useEffect13 = React9.useEffect, useLayoutEffect = React9.useLayoutEffect, useDebugValue = React9.useDebugValue, didWarnOld18Alpha = false, didWarnUncachedGetSnapshot = false, shim = "undefined" === typeof window || "undefined" === typeof window.document || "undefined" === typeof window.document.createElement ? useSyncExternalStore$1 : useSyncExternalStore$2;
+        var React9 = require_react(), objectIs = "function" === typeof Object.is ? Object.is : is, useState4 = React9.useState, useEffect14 = React9.useEffect, useLayoutEffect = React9.useLayoutEffect, useDebugValue = React9.useDebugValue, didWarnOld18Alpha = false, didWarnUncachedGetSnapshot = false, shim = "undefined" === typeof window || "undefined" === typeof window.document || "undefined" === typeof window.document.createElement ? useSyncExternalStore$1 : useSyncExternalStore$2;
         exports.useSyncExternalStore = void 0 !== React9.useSyncExternalStore ? React9.useSyncExternalStore : shim;
         "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(Error());
       })();
@@ -31347,9 +31609,9 @@ ${prettyStateOverride(stateOverride)}`;
           return x === y && (0 !== x || 1 / x === 1 / y) || x !== x && y !== y;
         }
         "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-        var React9 = require_react(), shim = require_shim(), objectIs = "function" === typeof Object.is ? Object.is : is, useSyncExternalStore6 = shim.useSyncExternalStore, useRef3 = React9.useRef, useEffect13 = React9.useEffect, useMemo3 = React9.useMemo, useDebugValue = React9.useDebugValue;
+        var React9 = require_react(), shim = require_shim(), objectIs = "function" === typeof Object.is ? Object.is : is, useSyncExternalStore6 = shim.useSyncExternalStore, useRef4 = React9.useRef, useEffect14 = React9.useEffect, useMemo3 = React9.useMemo, useDebugValue = React9.useDebugValue;
         exports.useSyncExternalStoreWithSelector = function(subscribe, getSnapshot, getServerSnapshot, selector, isEqual2) {
-          var instRef = useRef3(null);
+          var instRef = useRef4(null);
           if (null === instRef.current) {
             var inst = { hasValue: false, value: null };
             instRef.current = inst;
@@ -31390,7 +31652,7 @@ ${prettyStateOverride(stateOverride)}`;
             [getSnapshot, getServerSnapshot, selector, isEqual2]
           );
           var value = useSyncExternalStore6(subscribe, instRef[0], instRef[1]);
-          useEffect13(
+          useEffect14(
             function() {
               inst.hasValue = true;
               inst.value = value;
@@ -31418,11 +31680,121 @@ ${prettyStateOverride(stateOverride)}`;
   });
 
   // src/client/index.tsx
-  var import_react17 = __toESM(require_react(), 1);
+  var import_react18 = __toESM(require_react(), 1);
   var import_client = __toESM(require_client(), 1);
 
   // node_modules/.pnpm/wagmi@3.1.0_@tanstack+query-core@5.90.12_@tanstack+react-query@5.90.12_react@19.2.3__@t_665a25229946796fa1aedad50b0b4413/node_modules/wagmi/dist/esm/context.js
   var import_react2 = __toESM(require_react(), 1);
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/ens/getEnsAddress.js
+  init_abis();
+  init_decodeFunctionResult();
+  init_encodeFunctionData();
+  init_getChainContractAddress();
+  init_trim();
+  init_toHex();
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/ens/errors.js
+  init_base();
+  init_contract();
+  function isNullUniversalResolverError(err) {
+    if (!(err instanceof BaseError))
+      return false;
+    const cause = err.walk((e) => e instanceof ContractFunctionRevertedError);
+    if (!(cause instanceof ContractFunctionRevertedError))
+      return false;
+    if (cause.data?.errorName === "HttpError")
+      return true;
+    if (cause.data?.errorName === "ResolverError")
+      return true;
+    if (cause.data?.errorName === "ResolverNotContract")
+      return true;
+    if (cause.data?.errorName === "ResolverNotFound")
+      return true;
+    if (cause.data?.errorName === "ReverseAddressMismatch")
+      return true;
+    if (cause.data?.errorName === "UnsupportedResolverProfile")
+      return true;
+    return false;
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/ens/getEnsAddress.js
+  init_localBatchGatewayRequest();
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/ens/namehash.js
+  init_concat();
+  init_toBytes();
+  init_toHex();
+  init_keccak256();
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/ens/encodedLabelToLabelhash.js
+  init_isHex();
+  function encodedLabelToLabelhash(label) {
+    if (label.length !== 66)
+      return null;
+    if (label.indexOf("[") !== 0)
+      return null;
+    if (label.indexOf("]") !== 65)
+      return null;
+    const hash5 = `0x${label.slice(1, 65)}`;
+    if (!isHex(hash5))
+      return null;
+    return hash5;
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/ens/namehash.js
+  function namehash(name) {
+    let result = new Uint8Array(32).fill(0);
+    if (!name)
+      return bytesToHex(result);
+    const labels = name.split(".");
+    for (let i = labels.length - 1; i >= 0; i -= 1) {
+      const hashFromEncodedLabel = encodedLabelToLabelhash(labels[i]);
+      const hashed = hashFromEncodedLabel ? toBytes(hashFromEncodedLabel) : keccak256(stringToBytes(labels[i]), "bytes");
+      result = keccak256(concat([result, hashed]), "bytes");
+    }
+    return bytesToHex(result);
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/ens/packetToBytes.js
+  init_toBytes();
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/ens/encodeLabelhash.js
+  function encodeLabelhash(hash5) {
+    return `[${hash5.slice(2)}]`;
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/ens/labelhash.js
+  init_toBytes();
+  init_toHex();
+  init_keccak256();
+  function labelhash(label) {
+    const result = new Uint8Array(32).fill(0);
+    if (!label)
+      return bytesToHex(result);
+    return encodedLabelToLabelhash(label) || keccak256(stringToBytes(label));
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/ens/packetToBytes.js
+  function packetToBytes(packet) {
+    const value = packet.replace(/^\.|\.$/gm, "");
+    if (value.length === 0)
+      return new Uint8Array(1);
+    const bytes = new Uint8Array(stringToBytes(value).byteLength + 2);
+    let offset = 0;
+    const list = value.split(".");
+    for (let i = 0; i < list.length; i++) {
+      let encoded = stringToBytes(list[i]);
+      if (encoded.byteLength > 255)
+        encoded = stringToBytes(encodeLabelhash(labelhash(list[i])));
+      bytes[offset] = encoded.length;
+      bytes.set(encoded, offset + 1);
+      offset += encoded.length + 1;
+    }
+    if (bytes.byteLength !== offset + 1)
+      return bytes.slice(0, offset + 1);
+    return bytes;
+  }
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/getAction.js
   function getAction(client, actionFn, name) {
@@ -31446,7 +31818,7 @@ ${prettyStateOverride(stateOverride)}`;
   init_request();
   init_rpc();
   var EXECUTION_REVERTED_ERROR_CODE = 3;
-  function getContractError(err, { abi, address, args, docsPath: docsPath8, functionName, sender }) {
+  function getContractError(err, { abi: abi2, address, args, docsPath: docsPath8, functionName, sender }) {
     const error = err instanceof RawContractError ? err : err instanceof BaseError ? err.walk((err2) => "data" in err2) || err.walk() : {};
     const { code, data, details, message, shortMessage } = error;
     const cause = (() => {
@@ -31454,7 +31826,7 @@ ${prettyStateOverride(stateOverride)}`;
         return new ContractFunctionZeroDataError({ functionName });
       if ([EXECUTION_REVERTED_ERROR_CODE, InternalRpcError.code].includes(code) && (data || details || message || shortMessage) || code === InvalidInputRpcError.code && details === "execution reverted" && data) {
         return new ContractFunctionRevertedError({
-          abi,
+          abi: abi2,
           data: typeof data === "object" ? data.data : data,
           functionName,
           message: error instanceof RpcRequestError ? details : shortMessage ?? message
@@ -31463,7 +31835,7 @@ ${prettyStateOverride(stateOverride)}`;
       return err;
     })();
     return new ContractFunctionExecutionError(cause, {
-      abi,
+      abi: abi2,
       args,
       contractAddress: address,
       docsPath: docsPath8,
@@ -31475,9 +31847,9 @@ ${prettyStateOverride(stateOverride)}`;
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/readContract.js
   init_call();
   async function readContract(client, parameters) {
-    const { abi, address, args, functionName, ...rest } = parameters;
+    const { abi: abi2, address, args, functionName, ...rest } = parameters;
     const calldata = encodeFunctionData({
-      abi,
+      abi: abi2,
       args,
       functionName
     });
@@ -31488,14 +31860,14 @@ ${prettyStateOverride(stateOverride)}`;
         to: address
       });
       return decodeFunctionResult({
-        abi,
+        abi: abi2,
         args,
         functionName,
         data: data || "0x"
       });
     } catch (error) {
       throw getContractError(error, {
-        abi,
+        abi: abi2,
         address,
         args,
         docsPath: "/docs/contract/readContract",
@@ -31504,8 +31876,518 @@ ${prettyStateOverride(stateOverride)}`;
     }
   }
 
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/ens/getEnsAddress.js
+  async function getEnsAddress(client, parameters) {
+    const { blockNumber, blockTag, coinType, name, gatewayUrls, strict } = parameters;
+    const { chain } = client;
+    const universalResolverAddress = (() => {
+      if (parameters.universalResolverAddress)
+        return parameters.universalResolverAddress;
+      if (!chain)
+        throw new Error("client chain not configured. universalResolverAddress is required.");
+      return getChainContractAddress({
+        blockNumber,
+        chain,
+        contract: "ensUniversalResolver"
+      });
+    })();
+    const tlds = chain?.ensTlds;
+    if (tlds && !tlds.some((tld) => name.endsWith(tld)))
+      return null;
+    const args = (() => {
+      if (coinType != null)
+        return [namehash(name), BigInt(coinType)];
+      return [namehash(name)];
+    })();
+    try {
+      const functionData = encodeFunctionData({
+        abi: addressResolverAbi,
+        functionName: "addr",
+        args
+      });
+      const readContractParameters = {
+        address: universalResolverAddress,
+        abi: universalResolverResolveAbi,
+        functionName: "resolveWithGateways",
+        args: [
+          toHex(packetToBytes(name)),
+          functionData,
+          gatewayUrls ?? [localBatchGatewayUrl]
+        ],
+        blockNumber,
+        blockTag
+      };
+      const readContractAction = getAction(client, readContract, "readContract");
+      const res = await readContractAction(readContractParameters);
+      if (res[0] === "0x")
+        return null;
+      const address = decodeFunctionResult({
+        abi: addressResolverAbi,
+        args,
+        functionName: "addr",
+        data: res[0]
+      });
+      if (address === "0x")
+        return null;
+      if (trim(address) === "0x00")
+        return null;
+      return address;
+    } catch (err) {
+      if (strict)
+        throw err;
+      if (isNullUniversalResolverError(err))
+        return null;
+      throw err;
+    }
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/errors/ens.js
+  init_base();
+  var EnsAvatarInvalidMetadataError = class extends BaseError {
+    constructor({ data }) {
+      super("Unable to extract image from metadata. The metadata may be malformed or invalid.", {
+        metaMessages: [
+          "- Metadata must be a JSON object with at least an `image`, `image_url` or `image_data` property.",
+          "",
+          `Provided data: ${JSON.stringify(data)}`
+        ],
+        name: "EnsAvatarInvalidMetadataError"
+      });
+    }
+  };
+  var EnsAvatarInvalidNftUriError = class extends BaseError {
+    constructor({ reason }) {
+      super(`ENS NFT avatar URI is invalid. ${reason}`, {
+        name: "EnsAvatarInvalidNftUriError"
+      });
+    }
+  };
+  var EnsAvatarUriResolutionError = class extends BaseError {
+    constructor({ uri }) {
+      super(`Unable to resolve ENS avatar URI "${uri}". The URI may be malformed, invalid, or does not respond with a valid image.`, { name: "EnsAvatarUriResolutionError" });
+    }
+  };
+  var EnsAvatarUnsupportedNamespaceError = class extends BaseError {
+    constructor({ namespace }) {
+      super(`ENS NFT avatar namespace "${namespace}" is not supported. Must be "erc721" or "erc1155".`, { name: "EnsAvatarUnsupportedNamespaceError" });
+    }
+  };
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/ens/avatar/utils.js
+  var networkRegex = /(?<protocol>https?:\/\/[^/]*|ipfs:\/|ipns:\/|ar:\/)?(?<root>\/)?(?<subpath>ipfs\/|ipns\/)?(?<target>[\w\-.]+)(?<subtarget>\/.*)?/;
+  var ipfsHashRegex = /^(Qm[1-9A-HJ-NP-Za-km-z]{44,}|b[A-Za-z2-7]{58,}|B[A-Z2-7]{58,}|z[1-9A-HJ-NP-Za-km-z]{48,}|F[0-9A-F]{50,})(\/(?<target>[\w\-.]+))?(?<subtarget>\/.*)?$/;
+  var base64Regex = /^data:([a-zA-Z\-/+]*);base64,([^"].*)/;
+  var dataURIRegex = /^data:([a-zA-Z\-/+]*)?(;[a-zA-Z0-9].*?)?(,)/;
+  async function isImageUri(uri) {
+    try {
+      const res = await fetch(uri, { method: "HEAD" });
+      if (res.status === 200) {
+        const contentType = res.headers.get("content-type");
+        return contentType?.startsWith("image/");
+      }
+      return false;
+    } catch (error) {
+      if (typeof error === "object" && typeof error.response !== "undefined") {
+        return false;
+      }
+      if (!Object.hasOwn(globalThis, "Image"))
+        return false;
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          resolve(true);
+        };
+        img.onerror = () => {
+          resolve(false);
+        };
+        img.src = uri;
+      });
+    }
+  }
+  function getGateway(custom2, defaultGateway) {
+    if (!custom2)
+      return defaultGateway;
+    if (custom2.endsWith("/"))
+      return custom2.slice(0, -1);
+    return custom2;
+  }
+  function resolveAvatarUri({ uri, gatewayUrls }) {
+    const isEncoded = base64Regex.test(uri);
+    if (isEncoded)
+      return { uri, isOnChain: true, isEncoded };
+    const ipfsGateway = getGateway(gatewayUrls?.ipfs, "https://ipfs.io");
+    const arweaveGateway = getGateway(gatewayUrls?.arweave, "https://arweave.net");
+    const networkRegexMatch = uri.match(networkRegex);
+    const { protocol, subpath, target, subtarget = "" } = networkRegexMatch?.groups || {};
+    const isIPNS = protocol === "ipns:/" || subpath === "ipns/";
+    const isIPFS = protocol === "ipfs:/" || subpath === "ipfs/" || ipfsHashRegex.test(uri);
+    if (uri.startsWith("http") && !isIPNS && !isIPFS) {
+      let replacedUri = uri;
+      if (gatewayUrls?.arweave)
+        replacedUri = uri.replace(/https:\/\/arweave.net/g, gatewayUrls?.arweave);
+      return { uri: replacedUri, isOnChain: false, isEncoded: false };
+    }
+    if ((isIPNS || isIPFS) && target) {
+      return {
+        uri: `${ipfsGateway}/${isIPNS ? "ipns" : "ipfs"}/${target}${subtarget}`,
+        isOnChain: false,
+        isEncoded: false
+      };
+    }
+    if (protocol === "ar:/" && target) {
+      return {
+        uri: `${arweaveGateway}/${target}${subtarget || ""}`,
+        isOnChain: false,
+        isEncoded: false
+      };
+    }
+    let parsedUri = uri.replace(dataURIRegex, "");
+    if (parsedUri.startsWith("<svg")) {
+      parsedUri = `data:image/svg+xml;base64,${btoa(parsedUri)}`;
+    }
+    if (parsedUri.startsWith("data:") || parsedUri.startsWith("{")) {
+      return {
+        uri: parsedUri,
+        isOnChain: true,
+        isEncoded: false
+      };
+    }
+    throw new EnsAvatarUriResolutionError({ uri });
+  }
+  function getJsonImage(data) {
+    if (typeof data !== "object" || !("image" in data) && !("image_url" in data) && !("image_data" in data)) {
+      throw new EnsAvatarInvalidMetadataError({ data });
+    }
+    return data.image || data.image_url || data.image_data;
+  }
+  async function getMetadataAvatarUri({ gatewayUrls, uri }) {
+    try {
+      const res = await fetch(uri).then((res2) => res2.json());
+      const image = await parseAvatarUri({
+        gatewayUrls,
+        uri: getJsonImage(res)
+      });
+      return image;
+    } catch {
+      throw new EnsAvatarUriResolutionError({ uri });
+    }
+  }
+  async function parseAvatarUri({ gatewayUrls, uri }) {
+    const { uri: resolvedURI, isOnChain } = resolveAvatarUri({ uri, gatewayUrls });
+    if (isOnChain)
+      return resolvedURI;
+    const isImage = await isImageUri(resolvedURI);
+    if (isImage)
+      return resolvedURI;
+    throw new EnsAvatarUriResolutionError({ uri });
+  }
+  function parseNftUri(uri_) {
+    let uri = uri_;
+    if (uri.startsWith("did:nft:")) {
+      uri = uri.replace("did:nft:", "").replace(/_/g, "/");
+    }
+    const [reference, asset_namespace, tokenID] = uri.split("/");
+    const [eip_namespace, chainID] = reference.split(":");
+    const [erc_namespace, contractAddress] = asset_namespace.split(":");
+    if (!eip_namespace || eip_namespace.toLowerCase() !== "eip155")
+      throw new EnsAvatarInvalidNftUriError({ reason: "Only EIP-155 supported" });
+    if (!chainID)
+      throw new EnsAvatarInvalidNftUriError({ reason: "Chain ID not found" });
+    if (!contractAddress)
+      throw new EnsAvatarInvalidNftUriError({
+        reason: "Contract address not found"
+      });
+    if (!tokenID)
+      throw new EnsAvatarInvalidNftUriError({ reason: "Token ID not found" });
+    if (!erc_namespace)
+      throw new EnsAvatarInvalidNftUriError({ reason: "ERC namespace not found" });
+    return {
+      chainID: Number.parseInt(chainID, 10),
+      namespace: erc_namespace.toLowerCase(),
+      contractAddress,
+      tokenID
+    };
+  }
+  async function getNftTokenUri(client, { nft }) {
+    if (nft.namespace === "erc721") {
+      return readContract(client, {
+        address: nft.contractAddress,
+        abi: [
+          {
+            name: "tokenURI",
+            type: "function",
+            stateMutability: "view",
+            inputs: [{ name: "tokenId", type: "uint256" }],
+            outputs: [{ name: "", type: "string" }]
+          }
+        ],
+        functionName: "tokenURI",
+        args: [BigInt(nft.tokenID)]
+      });
+    }
+    if (nft.namespace === "erc1155") {
+      return readContract(client, {
+        address: nft.contractAddress,
+        abi: [
+          {
+            name: "uri",
+            type: "function",
+            stateMutability: "view",
+            inputs: [{ name: "_id", type: "uint256" }],
+            outputs: [{ name: "", type: "string" }]
+          }
+        ],
+        functionName: "uri",
+        args: [BigInt(nft.tokenID)]
+      });
+    }
+    throw new EnsAvatarUnsupportedNamespaceError({ namespace: nft.namespace });
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/ens/avatar/parseAvatarRecord.js
+  async function parseAvatarRecord(client, { gatewayUrls, record }) {
+    if (/eip155:/i.test(record))
+      return parseNftAvatarUri(client, { gatewayUrls, record });
+    return parseAvatarUri({ uri: record, gatewayUrls });
+  }
+  async function parseNftAvatarUri(client, { gatewayUrls, record }) {
+    const nft = parseNftUri(record);
+    const nftUri = await getNftTokenUri(client, { nft });
+    const { uri: resolvedNftUri, isOnChain, isEncoded } = resolveAvatarUri({ uri: nftUri, gatewayUrls });
+    if (isOnChain && (resolvedNftUri.includes("data:application/json;base64,") || resolvedNftUri.startsWith("{"))) {
+      const encodedJson = isEncoded ? (
+        // if it is encoded, decode it
+        atob(resolvedNftUri.replace("data:application/json;base64,", ""))
+      ) : (
+        // if it isn't encoded assume it is a JSON string, but it could be anything (it will error if it is)
+        resolvedNftUri
+      );
+      const decoded = JSON.parse(encodedJson);
+      return parseAvatarUri({ uri: getJsonImage(decoded), gatewayUrls });
+    }
+    let uriTokenId = nft.tokenID;
+    if (nft.namespace === "erc1155")
+      uriTokenId = uriTokenId.replace("0x", "").padStart(64, "0");
+    return getMetadataAvatarUri({
+      gatewayUrls,
+      uri: resolvedNftUri.replace(/(?:0x)?{id}/, uriTokenId)
+    });
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/ens/getEnsText.js
+  init_abis();
+  init_decodeFunctionResult();
+  init_encodeFunctionData();
+  init_getChainContractAddress();
+  init_toHex();
+  init_localBatchGatewayRequest();
+  async function getEnsText(client, parameters) {
+    const { blockNumber, blockTag, key, name, gatewayUrls, strict } = parameters;
+    const { chain } = client;
+    const universalResolverAddress = (() => {
+      if (parameters.universalResolverAddress)
+        return parameters.universalResolverAddress;
+      if (!chain)
+        throw new Error("client chain not configured. universalResolverAddress is required.");
+      return getChainContractAddress({
+        blockNumber,
+        chain,
+        contract: "ensUniversalResolver"
+      });
+    })();
+    const tlds = chain?.ensTlds;
+    if (tlds && !tlds.some((tld) => name.endsWith(tld)))
+      return null;
+    try {
+      const readContractParameters = {
+        address: universalResolverAddress,
+        abi: universalResolverResolveAbi,
+        args: [
+          toHex(packetToBytes(name)),
+          encodeFunctionData({
+            abi: textResolverAbi,
+            functionName: "text",
+            args: [namehash(name), key]
+          }),
+          gatewayUrls ?? [localBatchGatewayUrl]
+        ],
+        functionName: "resolveWithGateways",
+        blockNumber,
+        blockTag
+      };
+      const readContractAction = getAction(client, readContract, "readContract");
+      const res = await readContractAction(readContractParameters);
+      if (res[0] === "0x")
+        return null;
+      const record = decodeFunctionResult({
+        abi: textResolverAbi,
+        functionName: "text",
+        data: res[0]
+      });
+      return record === "" ? null : record;
+    } catch (err) {
+      if (strict)
+        throw err;
+      if (isNullUniversalResolverError(err))
+        return null;
+      throw err;
+    }
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/ens/getEnsAvatar.js
+  async function getEnsAvatar(client, { blockNumber, blockTag, assetGatewayUrls, name, gatewayUrls, strict, universalResolverAddress }) {
+    const record = await getAction(client, getEnsText, "getEnsText")({
+      blockNumber,
+      blockTag,
+      key: "avatar",
+      name,
+      universalResolverAddress,
+      gatewayUrls,
+      strict
+    });
+    if (!record)
+      return null;
+    try {
+      return await parseAvatarRecord(client, {
+        record,
+        gatewayUrls: assetGatewayUrls
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/ens/getEnsName.js
+  init_abis();
+  init_getChainContractAddress();
+  init_localBatchGatewayRequest();
+  async function getEnsName(client, parameters) {
+    const { address, blockNumber, blockTag, coinType = 60n, gatewayUrls, strict } = parameters;
+    const { chain } = client;
+    const universalResolverAddress = (() => {
+      if (parameters.universalResolverAddress)
+        return parameters.universalResolverAddress;
+      if (!chain)
+        throw new Error("client chain not configured. universalResolverAddress is required.");
+      return getChainContractAddress({
+        blockNumber,
+        chain,
+        contract: "ensUniversalResolver"
+      });
+    })();
+    try {
+      const readContractParameters = {
+        address: universalResolverAddress,
+        abi: universalResolverReverseAbi,
+        args: [address, coinType, gatewayUrls ?? [localBatchGatewayUrl]],
+        functionName: "reverseWithGateways",
+        blockNumber,
+        blockTag
+      };
+      const readContractAction = getAction(client, readContract, "readContract");
+      const [name] = await readContractAction(readContractParameters);
+      return name || null;
+    } catch (err) {
+      if (strict)
+        throw err;
+      if (isNullUniversalResolverError(err))
+        return null;
+      throw err;
+    }
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/ens/getEnsResolver.js
+  init_getChainContractAddress();
+  init_toHex();
+  async function getEnsResolver(client, parameters) {
+    const { blockNumber, blockTag, name } = parameters;
+    const { chain } = client;
+    const universalResolverAddress = (() => {
+      if (parameters.universalResolverAddress)
+        return parameters.universalResolverAddress;
+      if (!chain)
+        throw new Error("client chain not configured. universalResolverAddress is required.");
+      return getChainContractAddress({
+        blockNumber,
+        chain,
+        contract: "ensUniversalResolver"
+      });
+    })();
+    const tlds = chain?.ensTlds;
+    if (tlds && !tlds.some((tld) => name.endsWith(tld)))
+      throw new Error(`${name} is not a valid ENS TLD (${tlds?.join(", ")}) for chain "${chain.name}" (id: ${chain.id}).`);
+    const [resolverAddress] = await getAction(client, readContract, "readContract")({
+      address: universalResolverAddress,
+      abi: [
+        {
+          inputs: [{ type: "bytes" }],
+          name: "findResolver",
+          outputs: [
+            { type: "address" },
+            { type: "bytes32" },
+            { type: "uint256" }
+          ],
+          stateMutability: "view",
+          type: "function"
+        }
+      ],
+      functionName: "findResolver",
+      args: [toHex(packetToBytes(name))],
+      blockNumber,
+      blockTag
+    });
+    return resolverAddress;
+  }
+
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/index.js
   init_call();
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/createAccessList.js
+  init_parseAccount();
+  init_toHex();
+  init_getCallError();
+  init_extract();
+  init_transactionRequest();
+  init_assertRequest();
+  async function createAccessList(client, args) {
+    const { account: account_ = client.account, blockNumber, blockTag = "latest", blobs, data, gas, gasPrice, maxFeePerBlobGas, maxFeePerGas, maxPriorityFeePerGas, to: to2, value, ...rest } = args;
+    const account = account_ ? parseAccount(account_) : void 0;
+    try {
+      assertRequest(args);
+      const blockNumberHex = typeof blockNumber === "bigint" ? numberToHex(blockNumber) : void 0;
+      const block = blockNumberHex || blockTag;
+      const chainFormat = client.chain?.formatters?.transactionRequest?.format;
+      const format2 = chainFormat || formatTransactionRequest;
+      const request = format2({
+        // Pick out extra data that might exist on the chain's transaction request type.
+        ...extract(rest, { format: chainFormat }),
+        account,
+        blobs,
+        data,
+        gas,
+        gasPrice,
+        maxFeePerBlobGas,
+        maxFeePerGas,
+        maxPriorityFeePerGas,
+        to: to2,
+        value
+      }, "createAccessList");
+      const response = await client.request({
+        method: "eth_createAccessList",
+        params: [request, block]
+      });
+      return {
+        accessList: response.accessList,
+        gasUsed: BigInt(response.gasUsed)
+      };
+    } catch (err) {
+      throw getCallError(err, {
+        ...args,
+        account,
+        chain: client.chain
+      });
+    }
+  }
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/filters/createFilterRequestScope.js
   function createFilterRequestScope(client, { method }) {
@@ -31516,6 +32398,17 @@ ${prettyStateOverride(stateOverride)}`;
           requestMap[id] = transport.request;
       });
     return ((id) => requestMap[id] || client.request);
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/createBlockFilter.js
+  async function createBlockFilter(client) {
+    const getRequest = createFilterRequestScope(client, {
+      method: "eth_newBlockFilter"
+    });
+    const id = await client.request({
+      method: "eth_newBlockFilter"
+    });
+    return { id, request: getRequest(id), type: "block" };
   }
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/abi/encodeEventTopics.js
@@ -31540,10 +32433,10 @@ ${prettyStateOverride(stateOverride)}`;
   init_getAbiItem();
   var docsPath6 = "/docs/contract/encodeEventTopics";
   function encodeEventTopics(parameters) {
-    const { abi, eventName, args } = parameters;
-    let abiItem = abi[0];
+    const { abi: abi2, eventName, args } = parameters;
+    let abiItem = abi2[0];
     if (eventName) {
-      const item = getAbiItem({ abi, name: eventName });
+      const item = getAbiItem({ abi: abi2, name: eventName });
       if (!item)
         throw new AbiEventNotFoundError(eventName, { docsPath: docsPath6 });
       abiItem = item;
@@ -31577,12 +32470,12 @@ ${prettyStateOverride(stateOverride)}`;
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/createContractEventFilter.js
   init_toHex();
   async function createContractEventFilter(client, parameters) {
-    const { address, abi, args, eventName, fromBlock, strict, toBlock } = parameters;
+    const { address, abi: abi2, args, eventName, fromBlock, strict, toBlock } = parameters;
     const getRequest = createFilterRequestScope(client, {
       method: "eth_newFilter"
     });
     const topics = eventName ? encodeEventTopics({
-      abi,
+      abi: abi2,
       args,
       eventName
     }) : void 0;
@@ -31598,7 +32491,7 @@ ${prettyStateOverride(stateOverride)}`;
       ]
     });
     return {
-      abi,
+      abi: abi2,
       args,
       eventName,
       id,
@@ -31607,6 +32500,63 @@ ${prettyStateOverride(stateOverride)}`;
       type: "event"
     };
   }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/createEventFilter.js
+  init_toHex();
+  async function createEventFilter(client, { address, args, event, events: events_, fromBlock, strict, toBlock } = {}) {
+    const events = events_ ?? (event ? [event] : void 0);
+    const getRequest = createFilterRequestScope(client, {
+      method: "eth_newFilter"
+    });
+    let topics = [];
+    if (events) {
+      const encoded = events.flatMap((event2) => encodeEventTopics({
+        abi: [event2],
+        eventName: event2.name,
+        args
+      }));
+      topics = [encoded];
+      if (event)
+        topics = topics[0];
+    }
+    const id = await client.request({
+      method: "eth_newFilter",
+      params: [
+        {
+          address,
+          fromBlock: typeof fromBlock === "bigint" ? numberToHex(fromBlock) : fromBlock,
+          toBlock: typeof toBlock === "bigint" ? numberToHex(toBlock) : toBlock,
+          ...topics.length ? { topics } : {}
+        }
+      ]
+    });
+    return {
+      abi: events,
+      args,
+      eventName: event ? event.name : void 0,
+      fromBlock,
+      id,
+      request: getRequest(id),
+      strict: Boolean(strict),
+      toBlock,
+      type: "event"
+    };
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/createPendingTransactionFilter.js
+  async function createPendingTransactionFilter(client) {
+    const getRequest = createFilterRequestScope(client, {
+      method: "eth_newPendingTransactionFilter"
+    });
+    const id = await client.request({
+      method: "eth_newPendingTransactionFilter"
+    });
+    return { id, request: getRequest(id), type: "transaction" };
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/estimateContractGas.js
+  init_parseAccount();
+  init_encodeFunctionData();
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/estimateGas.js
   init_parseAccount();
@@ -31625,8 +32575,8 @@ ${prettyStateOverride(stateOverride)}`;
   init_size();
   init_fromHex();
   init_toHex();
-  async function recoverPublicKey({ hash: hash4, signature }) {
-    const hashHex = isHex(hash4) ? hash4 : toHex(hash4);
+  async function recoverPublicKey({ hash: hash5, signature }) {
+    const hashHex = isHex(hash5) ? hash5 : toHex(hash5);
     const { secp256k1: secp256k12 } = await Promise.resolve().then(() => (init_secp256k1(), secp256k1_exports));
     const signature_ = (() => {
       if (typeof signature === "object" && "r" in signature && "s" in signature) {
@@ -31656,8 +32606,8 @@ ${prettyStateOverride(stateOverride)}`;
   }
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/signature/recoverAddress.js
-  async function recoverAddress({ hash: hash4, signature }) {
-    return publicKeyToAddress(await recoverPublicKey({ hash: hash4, signature }));
+  async function recoverAddress({ hash: hash5, signature }) {
+    return publicKeyToAddress(await recoverPublicKey({ hash: hash5, signature }));
   }
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/authorization/hashAuthorization.js
@@ -31707,8 +32657,8 @@ ${prettyStateOverride(stateOverride)}`;
           else
             cursor.pushUint32(bodyLength);
         }
-        for (const { encode } of list) {
-          encode(cursor);
+        for (const { encode: encode4 } of list) {
+          encode4(cursor);
         }
       }
     };
@@ -31763,7 +32713,7 @@ ${prettyStateOverride(stateOverride)}`;
   function hashAuthorization(parameters) {
     const { chainId, nonce: nonce2, to: to2 } = parameters;
     const address = parameters.contractAddress ?? parameters.address;
-    const hash4 = keccak256(concatHex([
+    const hash5 = keccak256(concatHex([
       "0x05",
       toRlp([
         chainId ? numberToHex(chainId) : "0x",
@@ -31772,8 +32722,8 @@ ${prettyStateOverride(stateOverride)}`;
       ])
     ]));
     if (to2 === "bytes")
-      return hexToBytes(hash4);
-    return hash4;
+      return hexToBytes(hash5);
+    return hash5;
   }
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/authorization/recoverAuthorizationAddress.js
@@ -32022,6 +32972,9 @@ ${prettyStateOverride(stateOverride)}`;
   }
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/estimateMaxPriorityFeePerGas.js
+  async function estimateMaxPriorityFeePerGas(client, args) {
+    return internal_estimateMaxPriorityFeePerGas(client, args);
+  }
   async function internal_estimateMaxPriorityFeePerGas(client, args) {
     const { block: block_, chain = client.chain, request } = args || {};
     try {
@@ -32058,6 +33011,9 @@ ${prettyStateOverride(stateOverride)}`;
   }
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/estimateFeesPerGas.js
+  async function estimateFeesPerGas(client, args) {
+    return internal_estimateFeesPerGas(client, args);
+  }
   async function internal_estimateFeesPerGas(client, args) {
     const { block: block_, chain = client.chain, request, type: type2 = "eip1559" } = args || {};
     const baseFeeMultiplier = await (async () => {
@@ -32224,16 +33180,16 @@ ${prettyStateOverride(stateOverride)}`;
     }
   };
   var InvalidVersionedHashSizeError = class extends BaseError {
-    constructor({ hash: hash4, size: size6 }) {
-      super(`Versioned hash "${hash4}" size is invalid.`, {
+    constructor({ hash: hash5, size: size6 }) {
+      super(`Versioned hash "${hash5}" size is invalid.`, {
         metaMessages: ["Expected: 32", `Received: ${size6}`],
         name: "InvalidVersionedHashSizeError"
       });
     }
   };
   var InvalidVersionedHashVersionError = class extends BaseError {
-    constructor({ hash: hash4, version: version6 }) {
-      super(`Versioned hash "${hash4}" version is invalid.`, {
+    constructor({ hash: hash5, version: version6 }) {
+      super(`Versioned hash "${hash5}" version is invalid.`, {
         metaMessages: [
           `Expected: ${versionedHashVersionKzg}`,
           `Received: ${version6}`
@@ -32535,11 +33491,11 @@ ${prettyStateOverride(stateOverride)}`;
       return false;
     })();
     const fillResult = attemptFill ? await getAction(client, fillTransaction, "fillTransaction")({ ...request, nonce: nonce2 }).then((result) => {
-      const { chainId: chainId2, from: from17, gas: gas2, gasPrice, nonce: nonce3, maxFeePerBlobGas, maxFeePerGas, maxPriorityFeePerGas, type: type3, ...rest } = result.transaction;
+      const { chainId: chainId2, from: from24, gas: gas2, gasPrice, nonce: nonce3, maxFeePerBlobGas, maxFeePerGas, maxPriorityFeePerGas, type: type3, ...rest } = result.transaction;
       supportsFillTransaction.set(client.uid, true);
       return {
         ...request,
-        ...from17 ? { from: from17 } : {},
+        ...from24 ? { from: from24 } : {},
         ...type3 ? { type: type3 } : {},
         ...typeof chainId2 !== "undefined" ? { chainId: chainId2 } : {},
         ...typeof gas2 !== "undefined" ? { gas: gas2 } : {},
@@ -32737,6 +33693,53 @@ ${prettyStateOverride(stateOverride)}`;
     }
   }
 
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/estimateContractGas.js
+  async function estimateContractGas(client, parameters) {
+    const { abi: abi2, address, args, functionName, dataSuffix, ...request } = parameters;
+    const data = encodeFunctionData({
+      abi: abi2,
+      args,
+      functionName
+    });
+    try {
+      const gas = await getAction(client, estimateGas, "estimateGas")({
+        data: `${data}${dataSuffix ? dataSuffix.replace("0x", "") : ""}`,
+        to: address,
+        ...request
+      });
+      return gas;
+    } catch (error) {
+      const account = request.account ? parseAccount(request.account) : void 0;
+      throw getContractError(error, {
+        abi: abi2,
+        address,
+        args,
+        docsPath: "/docs/contract/estimateContractGas",
+        functionName,
+        sender: account?.address
+      });
+    }
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/getBalance.js
+  init_toHex();
+  async function getBalance(client, { address, blockNumber, blockTag = client.experimental_blockTag ?? "latest" }) {
+    const blockNumberHex = typeof blockNumber === "bigint" ? numberToHex(blockNumber) : void 0;
+    const balance = await client.request({
+      method: "eth_getBalance",
+      params: [address, blockNumberHex || blockTag]
+    });
+    return BigInt(balance);
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/getBlobBaseFee.js
+  async function getBlobBaseFee(client) {
+    const baseFee = await client.request({
+      method: "eth_blobBaseFee"
+    });
+    return BigInt(baseFee);
+  }
+
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/promise/withCache.js
   var promiseCache = /* @__PURE__ */ new Map();
   var responseCache = /* @__PURE__ */ new Map();
@@ -32788,6 +33791,39 @@ ${prettyStateOverride(stateOverride)}`;
     return BigInt(blockNumberHex);
   }
 
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/getBlockTransactionCount.js
+  init_fromHex();
+  init_toHex();
+  async function getBlockTransactionCount(client, { blockHash, blockNumber, blockTag = "latest" } = {}) {
+    const blockNumberHex = blockNumber !== void 0 ? numberToHex(blockNumber) : void 0;
+    let count;
+    if (blockHash) {
+      count = await client.request({
+        method: "eth_getBlockTransactionCountByHash",
+        params: [blockHash]
+      }, { dedupe: true });
+    } else {
+      count = await client.request({
+        method: "eth_getBlockTransactionCountByNumber",
+        params: [blockNumberHex || blockTag]
+      }, { dedupe: Boolean(blockNumberHex) });
+    }
+    return hexToNumber(count);
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/getCode.js
+  init_toHex();
+  async function getCode(client, { address, blockNumber, blockTag = "latest" }) {
+    const blockNumberHex = blockNumber !== void 0 ? numberToHex(blockNumber) : void 0;
+    const hex = await client.request({
+      method: "eth_getCode",
+      params: [address, blockNumberHex || blockTag]
+    }, { dedupe: Boolean(blockNumberHex) });
+    if (hex === "0x")
+      return void 0;
+    return hex;
+  }
+
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/getContractEvents.js
   init_getAbiItem();
 
@@ -32806,12 +33842,12 @@ ${prettyStateOverride(stateOverride)}`;
   init_formatAbiItem();
   var docsPath7 = "/docs/contract/decodeEventLog";
   function decodeEventLog(parameters) {
-    const { abi, data, strict: strict_, topics } = parameters;
+    const { abi: abi2, data, strict: strict_, topics } = parameters;
     const strict = strict_ ?? true;
     const [signature, ...argTopics] = topics;
     if (!signature)
       throw new AbiEventSignatureEmptyTopicsError({ docsPath: docsPath7 });
-    const abiItem = abi.find((x) => x.type === "event" && signature === toEventSelector(formatAbiItem(x)));
+    const abiItem = abi2.find((x) => x.type === "event" && signature === toEventSelector(formatAbiItem(x)));
     if (!(abiItem && "name" in abiItem) || abiItem.type !== "event")
       throw new AbiEventSignatureNotFoundError(signature, { docsPath: docsPath7 });
     const { name, inputs } = abiItem;
@@ -32879,7 +33915,7 @@ ${prettyStateOverride(stateOverride)}`;
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/abi/parseEventLogs.js
   function parseEventLogs(parameters) {
-    const { abi, args, logs, strict = true } = parameters;
+    const { abi: abi2, args, logs, strict = true } = parameters;
     const eventName = (() => {
       if (!parameters.eventName)
         return void 0;
@@ -32888,7 +33924,7 @@ ${prettyStateOverride(stateOverride)}`;
       return [parameters.eventName];
     })();
     return logs.map((log) => {
-      const abiItems = abi.filter((abiItem2) => abiItem2.type === "event" && log.topics[0] === toEventSelector(abiItem2));
+      const abiItems = abi2.filter((abiItem2) => abiItem2.type === "event" && log.topics[0] === toEventSelector(abiItem2));
       if (abiItems.length === 0)
         return null;
       let event;
@@ -33040,9 +34076,9 @@ ${prettyStateOverride(stateOverride)}`;
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/getContractEvents.js
   async function getContractEvents(client, parameters) {
-    const { abi, address, args, blockHash, eventName, fromBlock, toBlock, strict } = parameters;
-    const event = eventName ? getAbiItem({ abi, name: eventName }) : void 0;
-    const events = !event ? abi.filter((x) => x.type === "event") : void 0;
+    const { abi: abi2, address, args, blockHash, eventName, fromBlock, toBlock, strict } = parameters;
+    const event = eventName ? getAbiItem({ abi: abi2, name: eventName }) : void 0;
+    const events = !event ? abi2.filter((x) => x.type === "event") : void 0;
     return getAction(client, getLogs, "getLogs")({
       address,
       args,
@@ -33053,6 +34089,97 @@ ${prettyStateOverride(stateOverride)}`;
       toBlock,
       strict
     });
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/errors/eip712.js
+  init_base();
+  var Eip712DomainNotFoundError = class extends BaseError {
+    constructor({ address }) {
+      super(`No EIP-712 domain found on contract "${address}".`, {
+        metaMessages: [
+          "Ensure that:",
+          `- The contract is deployed at the address "${address}".`,
+          "- `eip712Domain()` function exists on the contract.",
+          "- `eip712Domain()` function matches signature to ERC-5267 specification."
+        ],
+        name: "Eip712DomainNotFoundError"
+      });
+    }
+  };
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/getEip712Domain.js
+  async function getEip712Domain(client, parameters) {
+    const { address, factory, factoryData } = parameters;
+    try {
+      const [fields, name, version6, chainId, verifyingContract, salt, extensions] = await getAction(client, readContract, "readContract")({
+        abi,
+        address,
+        functionName: "eip712Domain",
+        factory,
+        factoryData
+      });
+      return {
+        domain: {
+          name,
+          version: version6,
+          chainId: Number(chainId),
+          verifyingContract,
+          salt
+        },
+        extensions,
+        fields
+      };
+    } catch (e) {
+      const error = e;
+      if (error.name === "ContractFunctionExecutionError" && error.cause.name === "ContractFunctionZeroDataError") {
+        throw new Eip712DomainNotFoundError({ address });
+      }
+      throw error;
+    }
+  }
+  var abi = [
+    {
+      inputs: [],
+      name: "eip712Domain",
+      outputs: [
+        { name: "fields", type: "bytes1" },
+        { name: "name", type: "string" },
+        { name: "version", type: "string" },
+        { name: "chainId", type: "uint256" },
+        { name: "verifyingContract", type: "address" },
+        { name: "salt", type: "bytes32" },
+        { name: "extensions", type: "uint256[]" }
+      ],
+      stateMutability: "view",
+      type: "function"
+    }
+  ];
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/getFeeHistory.js
+  init_toHex();
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/formatters/feeHistory.js
+  function formatFeeHistory(feeHistory) {
+    return {
+      baseFeePerGas: feeHistory.baseFeePerGas.map((value) => BigInt(value)),
+      gasUsedRatio: feeHistory.gasUsedRatio,
+      oldestBlock: BigInt(feeHistory.oldestBlock),
+      reward: feeHistory.reward?.map((reward) => reward.map((value) => BigInt(value)))
+    };
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/getFeeHistory.js
+  async function getFeeHistory(client, { blockCount, blockNumber, blockTag = "latest", rewardPercentiles }) {
+    const blockNumberHex = typeof blockNumber === "bigint" ? numberToHex(blockNumber) : void 0;
+    const feeHistory = await client.request({
+      method: "eth_feeHistory",
+      params: [
+        numberToHex(blockCount),
+        blockNumberHex || blockTag,
+        rewardPercentiles
+      ]
+    }, { dedupe: Boolean(blockNumberHex) });
+    return formatFeeHistory(feeHistory);
   }
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/getFilterChanges.js
@@ -33073,6 +34200,26 @@ ${prettyStateOverride(stateOverride)}`;
       strict
     });
   }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/getFilterLogs.js
+  async function getFilterLogs(_client, { filter }) {
+    const strict = filter.strict ?? false;
+    const logs = await filter.request({
+      method: "eth_getFilterLogs",
+      params: [filter.id]
+    });
+    const formattedLogs = logs.map((log) => formatLog(log));
+    if (!filter.abi)
+      return formattedLogs;
+    return parseEventLogs({
+      abi: filter.abi,
+      logs: formattedLogs,
+      strict
+    });
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/getProof.js
+  init_toHex();
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/index.js
   init_parseAccount();
@@ -33116,14 +34263,14 @@ ${prettyStateOverride(stateOverride)}`;
     if (blobVersionedHashes) {
       if (blobVersionedHashes.length === 0)
         throw new EmptyBlobError();
-      for (const hash4 of blobVersionedHashes) {
-        const size_ = size(hash4);
-        const version6 = hexToNumber(slice(hash4, 0, 1));
+      for (const hash5 of blobVersionedHashes) {
+        const size_ = size(hash5);
+        const version6 = hexToNumber(slice(hash5, 0, 1));
         if (size_ !== 32)
-          throw new InvalidVersionedHashSizeError({ hash: hash4, size: size_ });
+          throw new InvalidVersionedHashSizeError({ hash: hash5, size: size_ });
         if (version6 !== versionedHashVersionKzg)
           throw new InvalidVersionedHashVersionError({
-            hash: hash4,
+            hash: hash5,
             version: version6
           });
       }
@@ -33405,6 +34552,16 @@ ${prettyStateOverride(stateOverride)}`;
     return serializedAuthorizationList;
   }
 
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/authorization/verifyAuthorization.js
+  init_getAddress();
+  init_isAddressEqual();
+  async function verifyAuthorization({ address, authorization, signature }) {
+    return isAddressEqual(getAddress(address), await recoverAuthorizationAddress({
+      authorization,
+      signature
+    }));
+  }
+
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/buildRequest.js
   init_base();
   init_request();
@@ -33619,6 +34776,7 @@ ${prettyStateOverride(stateOverride)}`;
   }
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/index.js
+  init_fromHex();
   init_toHex();
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/formatters/transactionReceipt.js
@@ -33850,6 +35008,32 @@ ${prettyStateOverride(stateOverride)}`;
   init_size();
   init_toHex();
   init_regex();
+  init_stringify();
+  function serializeTypedData(parameters) {
+    const { domain: domain_, message: message_, primaryType, types: types2 } = parameters;
+    const normalizeData = (struct, data_) => {
+      const data = { ...data_ };
+      for (const param of struct) {
+        const { name, type: type2 } = param;
+        if (type2 === "address")
+          data[name] = data[name].toLowerCase();
+      }
+      return data;
+    };
+    const domain = (() => {
+      if (!types2.EIP712Domain)
+        return {};
+      if (!domain_)
+        return {};
+      return normalizeData(types2.EIP712Domain, domain_);
+    })();
+    const message = (() => {
+      if (primaryType === "EIP712Domain")
+        return void 0;
+      return normalizeData(types2[primaryType], message_);
+    })();
+    return stringify({ domain, message, primaryType, types: types2 });
+  }
   function validateTypedData(parameters) {
     const { domain, message, primaryType, types: types2 } = parameters;
     const validateData = (struct, data) => {
@@ -34024,7 +35208,35 @@ ${prettyStateOverride(stateOverride)}`;
     return [{ type: type2 }, value];
   }
 
+  // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/erc8010/SignatureErc8010.js
+  var SignatureErc8010_exports = {};
+  __export(SignatureErc8010_exports, {
+    InvalidWrappedSignatureError: () => InvalidWrappedSignatureError,
+    assert: () => assert6,
+    from: () => from9,
+    magicBytes: () => magicBytes,
+    suffixParameters: () => suffixParameters,
+    unwrap: () => unwrap,
+    validate: () => validate5,
+    wrap: () => wrap
+  });
+
+  // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/AbiParameters.js
+  init_exports();
+
   // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/Address.js
+  var Address_exports = {};
+  __export(Address_exports, {
+    InvalidAddressError: () => InvalidAddressError2,
+    InvalidChecksumError: () => InvalidChecksumError,
+    InvalidInputError: () => InvalidInputError,
+    assert: () => assert4,
+    checksum: () => checksum2,
+    from: () => from4,
+    fromPublicKey: () => fromPublicKey,
+    isEqual: () => isEqual,
+    validate: () => validate4
+  });
   init_Bytes();
 
   // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/internal/lru.js
@@ -34269,13 +35481,13 @@ ${prettyStateOverride(stateOverride)}`;
       return checksum.get(address);
     assert4(address, { strict: false });
     const hexAddress = address.substring(2).toLowerCase();
-    const hash4 = keccak2562(fromString(hexAddress), { as: "Bytes" });
+    const hash5 = keccak2562(fromString(hexAddress), { as: "Bytes" });
     const characters = hexAddress.split("");
     for (let i = 0; i < 40; i += 2) {
-      if (hash4[i >> 1] >> 4 >= 8 && characters[i]) {
+      if (hash5[i >> 1] >> 4 >= 8 && characters[i]) {
         characters[i] = characters[i].toUpperCase();
       }
-      if ((hash4[i >> 1] & 15) >= 8 && characters[i + 1]) {
+      if ((hash5[i >> 1] & 15) >= 8 && characters[i + 1]) {
         characters[i + 1] = characters[i + 1].toUpperCase();
       }
     }
@@ -34344,7 +35556,20 @@ ${prettyStateOverride(stateOverride)}`;
     }
   };
 
+  // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/AbiParameters.js
+  init_Bytes();
+  init_Errors();
+  init_Hex();
+
+  // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/internal/abiParameters.js
+  init_Bytes();
+  init_Errors();
+  init_Hex();
+
   // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/Solidity.js
+  var arrayRegex = /^(.*)\[([0-9]*)\]$/;
+  var bytesRegex3 = /^bytes([1-9]|1[0-9]|2[0-9]|3[0-2])?$/;
+  var integerRegex3 = /^(u?int)(8|16|24|32|40|48|56|64|72|80|88|96|104|112|120|128|136|144|152|160|168|176|184|192|200|208|216|224|232|240|248|256)?$/;
   var maxInt82 = 2n ** (8n - 1n) - 1n;
   var maxInt162 = 2n ** (16n - 1n) - 1n;
   var maxInt242 = 2n ** (24n - 1n) - 1n;
@@ -34441,6 +35666,395 @@ ${prettyStateOverride(stateOverride)}`;
   var maxUint2402 = 2n ** 240n - 1n;
   var maxUint2482 = 2n ** 248n - 1n;
   var maxUint2562 = 2n ** 256n - 1n;
+
+  // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/internal/abiParameters.js
+  function decodeParameter2(cursor, param, options) {
+    const { checksumAddress: checksumAddress2, staticPosition } = options;
+    const arrayComponents = getArrayComponents2(param.type);
+    if (arrayComponents) {
+      const [length, type2] = arrayComponents;
+      return decodeArray2(cursor, { ...param, type: type2 }, { checksumAddress: checksumAddress2, length, staticPosition });
+    }
+    if (param.type === "tuple")
+      return decodeTuple2(cursor, param, {
+        checksumAddress: checksumAddress2,
+        staticPosition
+      });
+    if (param.type === "address")
+      return decodeAddress2(cursor, { checksum: checksumAddress2 });
+    if (param.type === "bool")
+      return decodeBool2(cursor);
+    if (param.type.startsWith("bytes"))
+      return decodeBytes2(cursor, param, { staticPosition });
+    if (param.type.startsWith("uint") || param.type.startsWith("int"))
+      return decodeNumber2(cursor, param);
+    if (param.type === "string")
+      return decodeString2(cursor, { staticPosition });
+    throw new InvalidTypeError(param.type);
+  }
+  var sizeOfLength2 = 32;
+  var sizeOfOffset2 = 32;
+  function decodeAddress2(cursor, options = {}) {
+    const { checksum: checksum3 = false } = options;
+    const value = cursor.readBytes(32);
+    const wrap3 = (address) => checksum3 ? checksum2(address) : address;
+    return [wrap3(fromBytes(slice2(value, -20))), 32];
+  }
+  function decodeArray2(cursor, param, options) {
+    const { checksumAddress: checksumAddress2, length, staticPosition } = options;
+    if (!length) {
+      const offset = toNumber2(cursor.readBytes(sizeOfOffset2));
+      const start3 = staticPosition + offset;
+      const startOfData = start3 + sizeOfLength2;
+      cursor.setPosition(start3);
+      const length2 = toNumber2(cursor.readBytes(sizeOfLength2));
+      const dynamicChild = hasDynamicChild2(param);
+      let consumed2 = 0;
+      const value2 = [];
+      for (let i = 0; i < length2; ++i) {
+        cursor.setPosition(startOfData + (dynamicChild ? i * 32 : consumed2));
+        const [data, consumed_] = decodeParameter2(cursor, param, {
+          checksumAddress: checksumAddress2,
+          staticPosition: startOfData
+        });
+        consumed2 += consumed_;
+        value2.push(data);
+      }
+      cursor.setPosition(staticPosition + 32);
+      return [value2, 32];
+    }
+    if (hasDynamicChild2(param)) {
+      const offset = toNumber2(cursor.readBytes(sizeOfOffset2));
+      const start3 = staticPosition + offset;
+      const value2 = [];
+      for (let i = 0; i < length; ++i) {
+        cursor.setPosition(start3 + i * 32);
+        const [data] = decodeParameter2(cursor, param, {
+          checksumAddress: checksumAddress2,
+          staticPosition: start3
+        });
+        value2.push(data);
+      }
+      cursor.setPosition(staticPosition + 32);
+      return [value2, 32];
+    }
+    let consumed = 0;
+    const value = [];
+    for (let i = 0; i < length; ++i) {
+      const [data, consumed_] = decodeParameter2(cursor, param, {
+        checksumAddress: checksumAddress2,
+        staticPosition: staticPosition + consumed
+      });
+      consumed += consumed_;
+      value.push(data);
+    }
+    return [value, consumed];
+  }
+  function decodeBool2(cursor) {
+    return [toBoolean(cursor.readBytes(32), { size: 32 }), 32];
+  }
+  function decodeBytes2(cursor, param, { staticPosition }) {
+    const [_, size6] = param.type.split("bytes");
+    if (!size6) {
+      const offset = toNumber2(cursor.readBytes(32));
+      cursor.setPosition(staticPosition + offset);
+      const length = toNumber2(cursor.readBytes(32));
+      if (length === 0) {
+        cursor.setPosition(staticPosition + 32);
+        return ["0x", 32];
+      }
+      const data = cursor.readBytes(length);
+      cursor.setPosition(staticPosition + 32);
+      return [fromBytes(data), 32];
+    }
+    const value = fromBytes(cursor.readBytes(Number.parseInt(size6, 10), 32));
+    return [value, 32];
+  }
+  function decodeNumber2(cursor, param) {
+    const signed = param.type.startsWith("int");
+    const size6 = Number.parseInt(param.type.split("int")[1] || "256", 10);
+    const value = cursor.readBytes(32);
+    return [
+      size6 > 48 ? toBigInt2(value, { signed }) : toNumber2(value, { signed }),
+      32
+    ];
+  }
+  function decodeTuple2(cursor, param, options) {
+    const { checksumAddress: checksumAddress2, staticPosition } = options;
+    const hasUnnamedChild = param.components.length === 0 || param.components.some(({ name }) => !name);
+    const value = hasUnnamedChild ? [] : {};
+    let consumed = 0;
+    if (hasDynamicChild2(param)) {
+      const offset = toNumber2(cursor.readBytes(sizeOfOffset2));
+      const start3 = staticPosition + offset;
+      for (let i = 0; i < param.components.length; ++i) {
+        const component = param.components[i];
+        cursor.setPosition(start3 + consumed);
+        const [data, consumed_] = decodeParameter2(cursor, component, {
+          checksumAddress: checksumAddress2,
+          staticPosition: start3
+        });
+        consumed += consumed_;
+        value[hasUnnamedChild ? i : component?.name] = data;
+      }
+      cursor.setPosition(staticPosition + 32);
+      return [value, 32];
+    }
+    for (let i = 0; i < param.components.length; ++i) {
+      const component = param.components[i];
+      const [data, consumed_] = decodeParameter2(cursor, component, {
+        checksumAddress: checksumAddress2,
+        staticPosition
+      });
+      value[hasUnnamedChild ? i : component?.name] = data;
+      consumed += consumed_;
+    }
+    return [value, consumed];
+  }
+  function decodeString2(cursor, { staticPosition }) {
+    const offset = toNumber2(cursor.readBytes(32));
+    const start3 = staticPosition + offset;
+    cursor.setPosition(start3);
+    const length = toNumber2(cursor.readBytes(32));
+    if (length === 0) {
+      cursor.setPosition(staticPosition + 32);
+      return ["", 32];
+    }
+    const data = cursor.readBytes(length, 32);
+    const value = toString(trimLeft(data));
+    cursor.setPosition(staticPosition + 32);
+    return [value, 32];
+  }
+  function prepareParameters({ checksumAddress: checksumAddress2, parameters, values }) {
+    const preparedParameters = [];
+    for (let i = 0; i < parameters.length; i++) {
+      preparedParameters.push(prepareParameter({
+        checksumAddress: checksumAddress2,
+        parameter: parameters[i],
+        value: values[i]
+      }));
+    }
+    return preparedParameters;
+  }
+  function prepareParameter({ checksumAddress: checksumAddress2 = false, parameter: parameter_, value }) {
+    const parameter = parameter_;
+    const arrayComponents = getArrayComponents2(parameter.type);
+    if (arrayComponents) {
+      const [length, type2] = arrayComponents;
+      return encodeArray2(value, {
+        checksumAddress: checksumAddress2,
+        length,
+        parameter: {
+          ...parameter,
+          type: type2
+        }
+      });
+    }
+    if (parameter.type === "tuple") {
+      return encodeTuple2(value, {
+        checksumAddress: checksumAddress2,
+        parameter
+      });
+    }
+    if (parameter.type === "address") {
+      return encodeAddress2(value, {
+        checksum: checksumAddress2
+      });
+    }
+    if (parameter.type === "bool") {
+      return encodeBoolean(value);
+    }
+    if (parameter.type.startsWith("uint") || parameter.type.startsWith("int")) {
+      const signed = parameter.type.startsWith("int");
+      const [, , size6 = "256"] = integerRegex3.exec(parameter.type) ?? [];
+      return encodeNumber2(value, {
+        signed,
+        size: Number(size6)
+      });
+    }
+    if (parameter.type.startsWith("bytes")) {
+      return encodeBytes2(value, { type: parameter.type });
+    }
+    if (parameter.type === "string") {
+      return encodeString2(value);
+    }
+    throw new InvalidTypeError(parameter.type);
+  }
+  function encode(preparedParameters) {
+    let staticSize = 0;
+    for (let i = 0; i < preparedParameters.length; i++) {
+      const { dynamic, encoded } = preparedParameters[i];
+      if (dynamic)
+        staticSize += 32;
+      else
+        staticSize += size3(encoded);
+    }
+    const staticParameters = [];
+    const dynamicParameters = [];
+    let dynamicSize = 0;
+    for (let i = 0; i < preparedParameters.length; i++) {
+      const { dynamic, encoded } = preparedParameters[i];
+      if (dynamic) {
+        staticParameters.push(fromNumber(staticSize + dynamicSize, { size: 32 }));
+        dynamicParameters.push(encoded);
+        dynamicSize += size3(encoded);
+      } else {
+        staticParameters.push(encoded);
+      }
+    }
+    return concat3(...staticParameters, ...dynamicParameters);
+  }
+  function encodeAddress2(value, options) {
+    const { checksum: checksum3 = false } = options;
+    assert4(value, { strict: checksum3 });
+    return {
+      dynamic: false,
+      encoded: padLeft(value.toLowerCase())
+    };
+  }
+  function encodeArray2(value, options) {
+    const { checksumAddress: checksumAddress2, length, parameter } = options;
+    const dynamic = length === null;
+    if (!Array.isArray(value))
+      throw new InvalidArrayError2(value);
+    if (!dynamic && value.length !== length)
+      throw new ArrayLengthMismatchError({
+        expectedLength: length,
+        givenLength: value.length,
+        type: `${parameter.type}[${length}]`
+      });
+    let dynamicChild = false;
+    const preparedParameters = [];
+    for (let i = 0; i < value.length; i++) {
+      const preparedParam = prepareParameter({
+        checksumAddress: checksumAddress2,
+        parameter,
+        value: value[i]
+      });
+      if (preparedParam.dynamic)
+        dynamicChild = true;
+      preparedParameters.push(preparedParam);
+    }
+    if (dynamic || dynamicChild) {
+      const data = encode(preparedParameters);
+      if (dynamic) {
+        const length2 = fromNumber(preparedParameters.length, { size: 32 });
+        return {
+          dynamic: true,
+          encoded: preparedParameters.length > 0 ? concat3(length2, data) : length2
+        };
+      }
+      if (dynamicChild)
+        return { dynamic: true, encoded: data };
+    }
+    return {
+      dynamic: false,
+      encoded: concat3(...preparedParameters.map(({ encoded }) => encoded))
+    };
+  }
+  function encodeBytes2(value, { type: type2 }) {
+    const [, parametersize] = type2.split("bytes");
+    const bytesSize = size3(value);
+    if (!parametersize) {
+      let value_ = value;
+      if (bytesSize % 32 !== 0)
+        value_ = padRight(value_, Math.ceil((value.length - 2) / 2 / 32) * 32);
+      return {
+        dynamic: true,
+        encoded: concat3(padLeft(fromNumber(bytesSize, { size: 32 })), value_)
+      };
+    }
+    if (bytesSize !== Number.parseInt(parametersize, 10))
+      throw new BytesSizeMismatchError2({
+        expectedSize: Number.parseInt(parametersize, 10),
+        value
+      });
+    return { dynamic: false, encoded: padRight(value) };
+  }
+  function encodeBoolean(value) {
+    if (typeof value !== "boolean")
+      throw new BaseError3(`Invalid boolean value: "${value}" (type: ${typeof value}). Expected: \`true\` or \`false\`.`);
+    return { dynamic: false, encoded: padLeft(fromBoolean(value)) };
+  }
+  function encodeNumber2(value, { signed, size: size6 }) {
+    if (typeof size6 === "number") {
+      const max = 2n ** (BigInt(size6) - (signed ? 1n : 0n)) - 1n;
+      const min = signed ? -max - 1n : 0n;
+      if (value > max || value < min)
+        throw new IntegerOutOfRangeError2({
+          max: max.toString(),
+          min: min.toString(),
+          signed,
+          size: size6 / 8,
+          value: value.toString()
+        });
+    }
+    return {
+      dynamic: false,
+      encoded: fromNumber(value, {
+        size: 32,
+        signed
+      })
+    };
+  }
+  function encodeString2(value) {
+    const hexValue = fromString2(value);
+    const partsLength = Math.ceil(size3(hexValue) / 32);
+    const parts = [];
+    for (let i = 0; i < partsLength; i++) {
+      parts.push(padRight(slice3(hexValue, i * 32, (i + 1) * 32)));
+    }
+    return {
+      dynamic: true,
+      encoded: concat3(padRight(fromNumber(size3(hexValue), { size: 32 })), ...parts)
+    };
+  }
+  function encodeTuple2(value, options) {
+    const { checksumAddress: checksumAddress2, parameter } = options;
+    let dynamic = false;
+    const preparedParameters = [];
+    for (let i = 0; i < parameter.components.length; i++) {
+      const param_ = parameter.components[i];
+      const index3 = Array.isArray(value) ? i : param_.name;
+      const preparedParam = prepareParameter({
+        checksumAddress: checksumAddress2,
+        parameter: param_,
+        value: value[index3]
+      });
+      preparedParameters.push(preparedParam);
+      if (preparedParam.dynamic)
+        dynamic = true;
+    }
+    return {
+      dynamic,
+      encoded: dynamic ? encode(preparedParameters) : concat3(...preparedParameters.map(({ encoded }) => encoded))
+    };
+  }
+  function getArrayComponents2(type2) {
+    const matches = type2.match(/^(.*)\[(\d+)?\]$/);
+    return matches ? (
+      // Return `null` if the array is dynamic.
+      [matches[2] ? Number(matches[2]) : null, matches[1]]
+    ) : void 0;
+  }
+  function hasDynamicChild2(param) {
+    const { type: type2 } = param;
+    if (type2 === "string")
+      return true;
+    if (type2 === "bytes")
+      return true;
+    if (type2.endsWith("[]"))
+      return true;
+    if (type2 === "tuple")
+      return param.components?.some(hasDynamicChild2);
+    const arrayComponents = getArrayComponents2(param.type);
+    if (arrayComponents && hasDynamicChild2({
+      ...param,
+      type: arrayComponents[1]
+    }))
+      return true;
+    return false;
+  }
 
   // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/internal/cursor.js
   init_Errors();
@@ -34645,6 +36259,208 @@ ${prettyStateOverride(stateOverride)}`;
     }
   };
 
+  // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/AbiParameters.js
+  function decode(parameters, data, options = {}) {
+    const { as = "Array", checksumAddress: checksumAddress2 = false } = options;
+    const bytes = typeof data === "string" ? fromHex(data) : data;
+    const cursor = create(bytes);
+    if (size2(bytes) === 0 && parameters.length > 0)
+      throw new ZeroDataError();
+    if (size2(bytes) && size2(bytes) < 32)
+      throw new DataSizeTooSmallError({
+        data: typeof data === "string" ? data : fromBytes(data),
+        parameters,
+        size: size2(bytes)
+      });
+    let consumed = 0;
+    const values = as === "Array" ? [] : {};
+    for (let i = 0; i < parameters.length; ++i) {
+      const param = parameters[i];
+      cursor.setPosition(consumed);
+      const [data2, consumed_] = decodeParameter2(cursor, param, {
+        checksumAddress: checksumAddress2,
+        staticPosition: 0
+      });
+      consumed += consumed_;
+      if (as === "Array")
+        values.push(data2);
+      else
+        values[param.name ?? i] = data2;
+    }
+    return values;
+  }
+  function encode2(parameters, values, options) {
+    const { checksumAddress: checksumAddress2 = false } = options ?? {};
+    if (parameters.length !== values.length)
+      throw new LengthMismatchError({
+        expectedLength: parameters.length,
+        givenLength: values.length
+      });
+    const preparedParameters = prepareParameters({
+      checksumAddress: checksumAddress2,
+      parameters,
+      values
+    });
+    const data = encode(preparedParameters);
+    if (data.length === 0)
+      return "0x";
+    return data;
+  }
+  function encodePacked(types2, values) {
+    if (types2.length !== values.length)
+      throw new LengthMismatchError({
+        expectedLength: types2.length,
+        givenLength: values.length
+      });
+    const data = [];
+    for (let i = 0; i < types2.length; i++) {
+      const type2 = types2[i];
+      const value = values[i];
+      data.push(encodePacked.encode(type2, value));
+    }
+    return concat3(...data);
+  }
+  (function(encodePacked2) {
+    function encode4(type2, value, isArray = false) {
+      if (type2 === "address") {
+        const address = value;
+        assert4(address);
+        return padLeft(address.toLowerCase(), isArray ? 32 : 0);
+      }
+      if (type2 === "string")
+        return fromString2(value);
+      if (type2 === "bytes")
+        return value;
+      if (type2 === "bool")
+        return padLeft(fromBoolean(value), isArray ? 32 : 1);
+      const intMatch = type2.match(integerRegex3);
+      if (intMatch) {
+        const [_type, baseType, bits = "256"] = intMatch;
+        const size6 = Number.parseInt(bits, 10) / 8;
+        return fromNumber(value, {
+          size: isArray ? 32 : size6,
+          signed: baseType === "int"
+        });
+      }
+      const bytesMatch = type2.match(bytesRegex3);
+      if (bytesMatch) {
+        const [_type, size6] = bytesMatch;
+        if (Number.parseInt(size6, 10) !== (value.length - 2) / 2)
+          throw new BytesSizeMismatchError2({
+            expectedSize: Number.parseInt(size6, 10),
+            value
+          });
+        return padRight(value, isArray ? 32 : 0);
+      }
+      const arrayMatch = type2.match(arrayRegex);
+      if (arrayMatch && Array.isArray(value)) {
+        const [_type, childType] = arrayMatch;
+        const data = [];
+        for (let i = 0; i < value.length; i++) {
+          data.push(encode4(childType, value[i], true));
+        }
+        if (data.length === 0)
+          return "0x";
+        return concat3(...data);
+      }
+      throw new InvalidTypeError(type2);
+    }
+    encodePacked2.encode = encode4;
+  })(encodePacked || (encodePacked = {}));
+  function from5(parameters) {
+    if (Array.isArray(parameters) && typeof parameters[0] === "string")
+      return parseAbiParameters(parameters);
+    if (typeof parameters === "string")
+      return parseAbiParameters(parameters);
+    return parameters;
+  }
+  var DataSizeTooSmallError = class extends BaseError3 {
+    constructor({ data, parameters, size: size6 }) {
+      super(`Data size of ${size6} bytes is too small for given parameters.`, {
+        metaMessages: [
+          `Params: (${formatAbiParameters(parameters)})`,
+          `Data:   ${data} (${size6} bytes)`
+        ]
+      });
+      Object.defineProperty(this, "name", {
+        enumerable: true,
+        configurable: true,
+        writable: true,
+        value: "AbiParameters.DataSizeTooSmallError"
+      });
+    }
+  };
+  var ZeroDataError = class extends BaseError3 {
+    constructor() {
+      super('Cannot decode zero data ("0x") with ABI parameters.');
+      Object.defineProperty(this, "name", {
+        enumerable: true,
+        configurable: true,
+        writable: true,
+        value: "AbiParameters.ZeroDataError"
+      });
+    }
+  };
+  var ArrayLengthMismatchError = class extends BaseError3 {
+    constructor({ expectedLength, givenLength, type: type2 }) {
+      super(`Array length mismatch for type \`${type2}\`. Expected: \`${expectedLength}\`. Given: \`${givenLength}\`.`);
+      Object.defineProperty(this, "name", {
+        enumerable: true,
+        configurable: true,
+        writable: true,
+        value: "AbiParameters.ArrayLengthMismatchError"
+      });
+    }
+  };
+  var BytesSizeMismatchError2 = class extends BaseError3 {
+    constructor({ expectedSize, value }) {
+      super(`Size of bytes "${value}" (bytes${size3(value)}) does not match expected size (bytes${expectedSize}).`);
+      Object.defineProperty(this, "name", {
+        enumerable: true,
+        configurable: true,
+        writable: true,
+        value: "AbiParameters.BytesSizeMismatchError"
+      });
+    }
+  };
+  var LengthMismatchError = class extends BaseError3 {
+    constructor({ expectedLength, givenLength }) {
+      super([
+        "ABI encoding parameters/values length mismatch.",
+        `Expected length (parameters): ${expectedLength}`,
+        `Given length (values): ${givenLength}`
+      ].join("\n"));
+      Object.defineProperty(this, "name", {
+        enumerable: true,
+        configurable: true,
+        writable: true,
+        value: "AbiParameters.LengthMismatchError"
+      });
+    }
+  };
+  var InvalidArrayError2 = class extends BaseError3 {
+    constructor(value) {
+      super(`Value \`${value}\` is not a valid array.`);
+      Object.defineProperty(this, "name", {
+        enumerable: true,
+        configurable: true,
+        writable: true,
+        value: "AbiParameters.InvalidArrayError"
+      });
+    }
+  };
+  var InvalidTypeError = class extends BaseError3 {
+    constructor(type2) {
+      super(`Type \`${type2}\` is not a valid ABI Type.`);
+      Object.defineProperty(this, "name", {
+        enumerable: true,
+        configurable: true,
+        writable: true,
+        value: "AbiParameters.InvalidTypeError"
+      });
+    }
+  };
+
   // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/Authorization.js
   init_Hex();
 
@@ -34707,7 +36523,7 @@ ${prettyStateOverride(stateOverride)}`;
       value.push(decodeRlpCursor(cursor, to2));
     return value;
   }
-  function from5(value, options) {
+  function from6(value, options) {
     const { as } = options;
     const encodable = getEncodable2(value);
     const cursor = create(new Uint8Array(encodable.length));
@@ -34718,7 +36534,7 @@ ${prettyStateOverride(stateOverride)}`;
   }
   function fromHex3(hex, options = {}) {
     const { as = "Hex" } = options;
-    return from5(hex, { as });
+    return from6(hex, { as });
   }
   function getEncodable2(bytes) {
     if (Array.isArray(bytes))
@@ -34749,8 +36565,8 @@ ${prettyStateOverride(stateOverride)}`;
           else
             cursor.pushUint32(bodyLength);
         }
-        for (const { encode } of list) {
-          encode(cursor);
+        for (const { encode: encode4 } of list) {
+          encode4(cursor);
         }
       }
     };
@@ -34853,9 +36669,9 @@ ${prettyStateOverride(stateOverride)}`;
       return void 0;
     if (typeof value.s === "undefined")
       return void 0;
-    return from6(value);
+    return from7(value);
   }
-  function from6(signature) {
+  function from7(signature) {
     const signature_ = (() => {
       if (typeof signature === "string")
         return fromHex4(signature);
@@ -34899,7 +36715,7 @@ ${prettyStateOverride(stateOverride)}`;
   }
   function fromTuple(tuple) {
     const [yParity, r, s] = tuple;
-    return from6({
+    return from7({
       r: r === "0x" ? 0n : BigInt(r),
       s: s === "0x" ? 0n : BigInt(s),
       yParity: yParity === "0x" ? 0 : Number(yParity)
@@ -34929,8 +36745,8 @@ ${prettyStateOverride(stateOverride)}`;
     const { r, s, yParity } = signature;
     return [
       yParity ? "0x01" : "0x",
-      r === 0n ? "0x" : trimLeft(fromNumber(r)),
-      s === 0n ? "0x" : trimLeft(fromNumber(s))
+      r === 0n ? "0x" : trimLeft2(fromNumber(r)),
+      s === 0n ? "0x" : trimLeft2(fromNumber(s))
     ];
   }
   function vToYParity(v) {
@@ -35022,6 +36838,11 @@ ${prettyStateOverride(stateOverride)}`;
   };
 
   // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/Authorization.js
+  function from8(authorization, options = {}) {
+    if (typeof authorization.chainId === "string")
+      return fromRpc3(authorization);
+    return { ...authorization, ...options.signature };
+  }
   function fromRpc3(authorization) {
     const { address, chainId, nonce: nonce2 } = authorization;
     const signature = extract2(authorization);
@@ -35035,6 +36856,17 @@ ${prettyStateOverride(stateOverride)}`;
   function fromRpcList(authorizationList) {
     return authorizationList.map(fromRpc3);
   }
+  function getSignPayload(authorization) {
+    return hash2(authorization, { presign: true });
+  }
+  function hash2(authorization, options = {}) {
+    const { presign } = options;
+    return keccak2562(concat3("0x05", fromHex3(toTuple2(presign ? {
+      address: authorization.address,
+      chainId: authorization.chainId,
+      nonce: authorization.nonce
+    } : authorization))));
+  }
   function toRpc4(authorization) {
     const { address, chainId, nonce: nonce2, ...signature } = authorization;
     return {
@@ -35047,6 +36879,20 @@ ${prettyStateOverride(stateOverride)}`;
   function toRpcList(authorizationList) {
     return authorizationList.map(toRpc4);
   }
+  function toTuple2(authorization) {
+    const { address, chainId, nonce: nonce2 } = authorization;
+    const signature = extract2(authorization);
+    return [
+      chainId ? fromNumber(chainId) : "0x",
+      address,
+      nonce2 ? fromNumber(nonce2) : "0x",
+      ...signature ? toTuple(signature) : []
+    ];
+  }
+
+  // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/erc8010/SignatureErc8010.js
+  init_Errors();
+  init_Hex();
 
   // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/Secp256k1.js
   init_secp256k1();
@@ -35063,23 +36909,135 @@ ${prettyStateOverride(stateOverride)}`;
     return from3(point);
   }
   function verify(options) {
-    const { address, hash: hash4, payload, publicKey, signature } = options;
+    const { address, hash: hash5, payload, publicKey, signature } = options;
     if (address)
       return isEqual(address, recoverAddress2({ payload, signature }));
-    return secp256k1.verify(signature, from(payload), toBytes3(publicKey), ...hash4 ? [{ prehash: true, lowS: true }] : []);
+    return secp256k1.verify(signature, from(payload), toBytes3(publicKey), ...hash5 ? [{ prehash: true, lowS: true }] : []);
+  }
+
+  // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/erc8010/SignatureErc8010.js
+  var magicBytes = "0x8010801080108010801080108010801080108010801080108010801080108010";
+  var suffixParameters = from5("(uint256 chainId, address delegation, uint256 nonce, uint8 yParity, uint256 r, uint256 s), address to, bytes data");
+  function assert6(value) {
+    if (typeof value === "string") {
+      if (slice3(value, -32) !== magicBytes)
+        throw new InvalidWrappedSignatureError(value);
+    } else
+      assert5(value.authorization);
+  }
+  function from9(value) {
+    if (typeof value === "string")
+      return unwrap(value);
+    return value;
+  }
+  function unwrap(wrapped) {
+    assert6(wrapped);
+    const suffixLength = toNumber(slice3(wrapped, -64, -32));
+    const suffix = slice3(wrapped, -suffixLength - 64, -64);
+    const signature = slice3(wrapped, 0, -suffixLength - 64);
+    const [auth, to2, data] = decode(suffixParameters, suffix);
+    const authorization = from8({
+      address: auth.delegation,
+      chainId: Number(auth.chainId),
+      nonce: auth.nonce,
+      yParity: auth.yParity,
+      r: auth.r,
+      s: auth.s
+    });
+    return {
+      authorization,
+      signature,
+      ...data && data !== "0x" ? { data, to: to2 } : {}
+    };
+  }
+  function wrap(value) {
+    const { data, signature } = value;
+    assert6(value);
+    const self = recoverAddress2({
+      payload: getSignPayload(value.authorization),
+      signature: from7(value.authorization)
+    });
+    const suffix = encode2(suffixParameters, [
+      {
+        ...value.authorization,
+        delegation: value.authorization.address,
+        chainId: BigInt(value.authorization.chainId)
+      },
+      value.to ?? self,
+      data ?? "0x"
+    ]);
+    const suffixLength = fromNumber(size3(suffix), { size: 32 });
+    return concat3(signature, suffix, suffixLength, magicBytes);
+  }
+  function validate5(value) {
+    try {
+      assert6(value);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  var InvalidWrappedSignatureError = class extends BaseError3 {
+    constructor(wrapped) {
+      super(`Value \`${wrapped}\` is an invalid ERC-8010 wrapped signature.`);
+      Object.defineProperty(this, "name", {
+        enumerable: true,
+        configurable: true,
+        writable: true,
+        value: "SignatureErc8010.InvalidWrappedSignatureError"
+      });
+    }
+  };
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/formatters/proof.js
+  function formatStorageProof(storageProof) {
+    return storageProof.map((proof) => ({
+      ...proof,
+      value: BigInt(proof.value)
+    }));
+  }
+  function formatProof(proof) {
+    return {
+      ...proof,
+      balance: proof.balance ? BigInt(proof.balance) : void 0,
+      nonce: proof.nonce ? hexToNumber(proof.nonce) : void 0,
+      storageProof: proof.storageProof ? formatStorageProof(proof.storageProof) : void 0
+    };
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/getProof.js
+  async function getProof(client, { address, blockNumber, blockTag: blockTag_, storageKeys }) {
+    const blockTag = blockTag_ ?? "latest";
+    const blockNumberHex = blockNumber !== void 0 ? numberToHex(blockNumber) : void 0;
+    const proof = await client.request({
+      method: "eth_getProof",
+      params: [address, storageKeys, blockNumberHex || blockTag]
+    });
+    return formatProof(proof);
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/getStorageAt.js
+  init_toHex();
+  async function getStorageAt(client, { address, blockNumber, blockTag = "latest", slot }) {
+    const blockNumberHex = blockNumber !== void 0 ? numberToHex(blockNumber) : void 0;
+    const data = await client.request({
+      method: "eth_getStorageAt",
+      params: [address, slot, blockNumberHex || blockTag]
+    });
+    return data;
   }
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/getTransaction.js
   init_transaction();
   init_toHex();
-  async function getTransaction(client, { blockHash, blockNumber, blockTag: blockTag_, hash: hash4, index: index3, sender, nonce: nonce2 }) {
+  async function getTransaction(client, { blockHash, blockNumber, blockTag: blockTag_, hash: hash5, index: index3, sender, nonce: nonce2 }) {
     const blockTag = blockTag_ || "latest";
     const blockNumberHex = blockNumber !== void 0 ? numberToHex(blockNumber) : void 0;
     let transaction = null;
-    if (hash4) {
+    if (hash5) {
       transaction = await client.request({
         method: "eth_getTransactionByHash",
-        params: [hash4]
+        params: [hash5]
       }, { dedupe: true });
     } else if (blockHash) {
       transaction = await client.request({
@@ -35102,22 +37060,34 @@ ${prettyStateOverride(stateOverride)}`;
         blockHash,
         blockNumber,
         blockTag,
-        hash: hash4,
+        hash: hash5,
         index: index3
       });
     const format2 = client.chain?.formatters?.transaction?.format || formatTransaction;
     return format2(transaction, "getTransaction");
   }
 
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/getTransactionConfirmations.js
+  async function getTransactionConfirmations(client, { hash: hash5, transactionReceipt }) {
+    const [blockNumber, transaction] = await Promise.all([
+      getAction(client, getBlockNumber, "getBlockNumber")({}),
+      hash5 ? getAction(client, getTransaction, "getTransaction")({ hash: hash5 }) : void 0
+    ]);
+    const transactionBlockNumber = transactionReceipt?.blockNumber || transaction?.blockNumber;
+    if (!transactionBlockNumber)
+      return 0n;
+    return blockNumber - transactionBlockNumber + 1n;
+  }
+
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/getTransactionReceipt.js
   init_transaction();
-  async function getTransactionReceipt(client, { hash: hash4 }) {
+  async function getTransactionReceipt(client, { hash: hash5 }) {
     const receipt = await client.request({
       method: "eth_getTransactionReceipt",
-      params: [hash4]
+      params: [hash5]
     }, { dedupe: true });
     if (!receipt)
-      throw new TransactionReceiptNotFoundError({ hash: hash4 });
+      throw new TransactionReceiptNotFoundError({ hash: hash5 });
     const format2 = client.chain?.formatters?.transactionReceipt?.format || formatTransactionReceipt;
     return format2(receipt, "getTransactionReceipt");
   }
@@ -35153,9 +37123,9 @@ ${prettyStateOverride(stateOverride)}`;
     let currentChunk = 0;
     let currentChunkSize = 0;
     for (let i = 0; i < contracts.length; i++) {
-      const { abi, address, args, functionName } = contracts[i];
+      const { abi: abi2, address, args, functionName } = contracts[i];
       try {
-        const callData = encodeFunctionData({ abi, args, functionName });
+        const callData = encodeFunctionData({ abi: abi2, args, functionName });
         currentChunkSize += (callData.length - 2) / 2;
         if (
           // Check if batching is enabled.
@@ -35177,7 +37147,7 @@ ${prettyStateOverride(stateOverride)}`;
         ];
       } catch (err) {
         const error = getContractError(err, {
-          abi,
+          abi: abi2,
           address,
           args,
           docsPath: "/docs/contract/multicall",
@@ -35227,14 +37197,14 @@ ${prettyStateOverride(stateOverride)}`;
       for (let j = 0; j < aggregate3Result.length; j++) {
         const { returnData, success } = aggregate3Result[j];
         const { callData } = chunkedCalls[i][j];
-        const { abi, address, functionName, args } = contracts[results.length];
+        const { abi: abi2, address, functionName, args } = contracts[results.length];
         try {
           if (callData === "0x")
             throw new AbiDecodingZeroDataError();
           if (!success)
             throw new RawContractError({ data: returnData });
           const result2 = decodeFunctionResult({
-            abi,
+            abi: abi2,
             args,
             data: returnData,
             functionName
@@ -35242,7 +37212,7 @@ ${prettyStateOverride(stateOverride)}`;
           results.push(allowFailure ? { result: result2, status: "success" } : result2);
         } catch (err) {
           const error = getContractError(err, {
-            abi,
+            abi: abi2,
             address,
             args,
             docsPath: "/docs/contract/multicall",
@@ -35259,14 +37229,1014 @@ ${prettyStateOverride(stateOverride)}`;
     return results;
   }
 
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/simulateBlocks.js
+  init_BlockOverrides();
+  init_parseAccount();
+  init_abi();
+  init_contract();
+  init_node();
+  init_decodeFunctionResult();
+  init_encodeFunctionData();
+  init_concat();
+  init_toHex();
+  init_getNodeError();
+  init_transactionRequest();
+  init_stateOverride2();
+  init_assertRequest();
+  async function simulateBlocks(client, parameters) {
+    const { blockNumber, blockTag = client.experimental_blockTag ?? "latest", blocks, returnFullTransactions, traceTransfers, validation } = parameters;
+    try {
+      const blockStateCalls = [];
+      for (const block2 of blocks) {
+        const blockOverrides = block2.blockOverrides ? toRpc2(block2.blockOverrides) : void 0;
+        const calls = block2.calls.map((call_) => {
+          const call2 = call_;
+          const account = call2.account ? parseAccount(call2.account) : void 0;
+          const data = call2.abi ? encodeFunctionData(call2) : call2.data;
+          const request = {
+            ...call2,
+            account,
+            data: call2.dataSuffix ? concat([data || "0x", call2.dataSuffix]) : data,
+            from: call2.from ?? account?.address
+          };
+          assertRequest(request);
+          return formatTransactionRequest(request);
+        });
+        const stateOverrides = block2.stateOverrides ? serializeStateOverride(block2.stateOverrides) : void 0;
+        blockStateCalls.push({
+          blockOverrides,
+          calls,
+          stateOverrides
+        });
+      }
+      const blockNumberHex = typeof blockNumber === "bigint" ? numberToHex(blockNumber) : void 0;
+      const block = blockNumberHex || blockTag;
+      const result = await client.request({
+        method: "eth_simulateV1",
+        params: [
+          { blockStateCalls, returnFullTransactions, traceTransfers, validation },
+          block
+        ]
+      });
+      return result.map((block2, i) => ({
+        ...formatBlock(block2),
+        calls: block2.calls.map((call2, j) => {
+          const { abi: abi2, args, functionName, to: to2 } = blocks[i].calls[j];
+          const data = call2.error?.data ?? call2.returnData;
+          const gasUsed = BigInt(call2.gasUsed);
+          const logs = call2.logs?.map((log) => formatLog(log));
+          const status = call2.status === "0x1" ? "success" : "failure";
+          const result2 = abi2 && status === "success" && data !== "0x" ? decodeFunctionResult({
+            abi: abi2,
+            data,
+            functionName
+          }) : null;
+          const error = (() => {
+            if (status === "success")
+              return void 0;
+            let error2;
+            if (call2.error?.data === "0x")
+              error2 = new AbiDecodingZeroDataError();
+            else if (call2.error)
+              error2 = new RawContractError(call2.error);
+            if (!error2)
+              return void 0;
+            return getContractError(error2, {
+              abi: abi2 ?? [],
+              address: to2 ?? "0x",
+              args,
+              functionName: functionName ?? "<unknown>"
+            });
+          })();
+          return {
+            data,
+            gasUsed,
+            logs,
+            status,
+            ...status === "success" ? {
+              result: result2
+            } : {
+              error
+            }
+          };
+        })
+      }));
+    } catch (e) {
+      const cause = e;
+      const error = getNodeError(cause, {});
+      if (error instanceof UnknownNodeError)
+        throw cause;
+      throw error;
+    }
+  }
+
+  // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/AbiItem.js
+  init_exports();
+  init_Errors();
+  init_Hex();
+
+  // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/internal/abiItem.js
+  init_Errors();
+  function normalizeSignature2(signature) {
+    let active = true;
+    let current = "";
+    let level = 0;
+    let result = "";
+    let valid = false;
+    for (let i = 0; i < signature.length; i++) {
+      const char = signature[i];
+      if (["(", ")", ","].includes(char))
+        active = true;
+      if (char === "(")
+        level++;
+      if (char === ")")
+        level--;
+      if (!active)
+        continue;
+      if (level === 0) {
+        if (char === " " && ["event", "function", "error", ""].includes(result))
+          result = "";
+        else {
+          result += char;
+          if (char === ")") {
+            valid = true;
+            break;
+          }
+        }
+        continue;
+      }
+      if (char === " ") {
+        if (signature[i - 1] !== "," && current !== "," && current !== ",(") {
+          current = "";
+          active = false;
+        }
+        continue;
+      }
+      result += char;
+      current += char;
+    }
+    if (!valid)
+      throw new BaseError3("Unable to normalize signature.");
+    return result;
+  }
+  function isArgOfType2(arg, abiParameter) {
+    const argType = typeof arg;
+    const abiParameterType = abiParameter.type;
+    switch (abiParameterType) {
+      case "address":
+        return validate4(arg, { strict: false });
+      case "bool":
+        return argType === "boolean";
+      case "function":
+        return argType === "string";
+      case "string":
+        return argType === "string";
+      default: {
+        if (abiParameterType === "tuple" && "components" in abiParameter)
+          return Object.values(abiParameter.components).every((component, index3) => {
+            return isArgOfType2(Object.values(arg)[index3], component);
+          });
+        if (/^u?int(8|16|24|32|40|48|56|64|72|80|88|96|104|112|120|128|136|144|152|160|168|176|184|192|200|208|216|224|232|240|248|256)?$/.test(abiParameterType))
+          return argType === "number" || argType === "bigint";
+        if (/^bytes([1-9]|1[0-9]|2[0-9]|3[0-2])?$/.test(abiParameterType))
+          return argType === "string" || arg instanceof Uint8Array;
+        if (/[a-z]+[1-9]{0,3}(\[[0-9]{0,}\])+$/.test(abiParameterType)) {
+          return Array.isArray(arg) && arg.every((x) => isArgOfType2(x, {
+            ...abiParameter,
+            // Pop off `[]` or `[M]` from end of type
+            type: abiParameterType.replace(/(\[[0-9]{0,}\])$/, "")
+          }));
+        }
+        return false;
+      }
+    }
+  }
+  function getAmbiguousTypes2(sourceParameters, targetParameters, args) {
+    for (const parameterIndex in sourceParameters) {
+      const sourceParameter = sourceParameters[parameterIndex];
+      const targetParameter = targetParameters[parameterIndex];
+      if (sourceParameter.type === "tuple" && targetParameter.type === "tuple" && "components" in sourceParameter && "components" in targetParameter)
+        return getAmbiguousTypes2(sourceParameter.components, targetParameter.components, args[parameterIndex]);
+      const types2 = [sourceParameter.type, targetParameter.type];
+      const ambiguous = (() => {
+        if (types2.includes("address") && types2.includes("bytes20"))
+          return true;
+        if (types2.includes("address") && types2.includes("string"))
+          return validate4(args[parameterIndex], {
+            strict: false
+          });
+        if (types2.includes("address") && types2.includes("bytes"))
+          return validate4(args[parameterIndex], {
+            strict: false
+          });
+        return false;
+      })();
+      if (ambiguous)
+        return types2;
+    }
+    return;
+  }
+
+  // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/AbiItem.js
+  function from10(abiItem, options = {}) {
+    const { prepare = true } = options;
+    const item = (() => {
+      if (Array.isArray(abiItem))
+        return parseAbiItem(abiItem);
+      if (typeof abiItem === "string")
+        return parseAbiItem(abiItem);
+      return abiItem;
+    })();
+    return {
+      ...item,
+      ...prepare ? { hash: getSignatureHash(item) } : {}
+    };
+  }
+  function fromAbi(abi2, name, options) {
+    const { args = [], prepare = true } = options ?? {};
+    const isSelector = validate2(name, { strict: false });
+    const abiItems = abi2.filter((abiItem2) => {
+      if (isSelector) {
+        if (abiItem2.type === "function" || abiItem2.type === "error")
+          return getSelector(abiItem2) === slice3(name, 0, 4);
+        if (abiItem2.type === "event")
+          return getSignatureHash(abiItem2) === name;
+        return false;
+      }
+      return "name" in abiItem2 && abiItem2.name === name;
+    });
+    if (abiItems.length === 0)
+      throw new NotFoundError({ name });
+    if (abiItems.length === 1)
+      return {
+        ...abiItems[0],
+        ...prepare ? { hash: getSignatureHash(abiItems[0]) } : {}
+      };
+    let matchedAbiItem;
+    for (const abiItem2 of abiItems) {
+      if (!("inputs" in abiItem2))
+        continue;
+      if (!args || args.length === 0) {
+        if (!abiItem2.inputs || abiItem2.inputs.length === 0)
+          return {
+            ...abiItem2,
+            ...prepare ? { hash: getSignatureHash(abiItem2) } : {}
+          };
+        continue;
+      }
+      if (!abiItem2.inputs)
+        continue;
+      if (abiItem2.inputs.length === 0)
+        continue;
+      if (abiItem2.inputs.length !== args.length)
+        continue;
+      const matched = args.every((arg, index3) => {
+        const abiParameter = "inputs" in abiItem2 && abiItem2.inputs[index3];
+        if (!abiParameter)
+          return false;
+        return isArgOfType2(arg, abiParameter);
+      });
+      if (matched) {
+        if (matchedAbiItem && "inputs" in matchedAbiItem && matchedAbiItem.inputs) {
+          const ambiguousTypes = getAmbiguousTypes2(abiItem2.inputs, matchedAbiItem.inputs, args);
+          if (ambiguousTypes)
+            throw new AmbiguityError({
+              abiItem: abiItem2,
+              type: ambiguousTypes[0]
+            }, {
+              abiItem: matchedAbiItem,
+              type: ambiguousTypes[1]
+            });
+        }
+        matchedAbiItem = abiItem2;
+      }
+    }
+    const abiItem = (() => {
+      if (matchedAbiItem)
+        return matchedAbiItem;
+      const [abiItem2, ...overloads] = abiItems;
+      return { ...abiItem2, overloads };
+    })();
+    if (!abiItem)
+      throw new NotFoundError({ name });
+    return {
+      ...abiItem,
+      ...prepare ? { hash: getSignatureHash(abiItem) } : {}
+    };
+  }
+  function getSelector(...parameters) {
+    const abiItem = (() => {
+      if (Array.isArray(parameters[0])) {
+        const [abi2, name] = parameters;
+        return fromAbi(abi2, name);
+      }
+      return parameters[0];
+    })();
+    return slice3(getSignatureHash(abiItem), 0, 4);
+  }
+  function getSignature(...parameters) {
+    const abiItem = (() => {
+      if (Array.isArray(parameters[0])) {
+        const [abi2, name] = parameters;
+        return fromAbi(abi2, name);
+      }
+      return parameters[0];
+    })();
+    const signature = (() => {
+      if (typeof abiItem === "string")
+        return abiItem;
+      return formatAbiItem2(abiItem);
+    })();
+    return normalizeSignature2(signature);
+  }
+  function getSignatureHash(...parameters) {
+    const abiItem = (() => {
+      if (Array.isArray(parameters[0])) {
+        const [abi2, name] = parameters;
+        return fromAbi(abi2, name);
+      }
+      return parameters[0];
+    })();
+    if (typeof abiItem !== "string" && "hash" in abiItem && abiItem.hash)
+      return abiItem.hash;
+    return keccak2562(fromString2(getSignature(abiItem)));
+  }
+  var AmbiguityError = class extends BaseError3 {
+    constructor(x, y) {
+      super("Found ambiguous types in overloaded ABI Items.", {
+        metaMessages: [
+          // TODO: abitype to add support for signature-formatted ABI items.
+          `\`${x.type}\` in \`${normalizeSignature2(formatAbiItem2(x.abiItem))}\`, and`,
+          `\`${y.type}\` in \`${normalizeSignature2(formatAbiItem2(y.abiItem))}\``,
+          "",
+          "These types encode differently and cannot be distinguished at runtime.",
+          "Remove one of the ambiguous items in the ABI."
+        ]
+      });
+      Object.defineProperty(this, "name", {
+        enumerable: true,
+        configurable: true,
+        writable: true,
+        value: "AbiItem.AmbiguityError"
+      });
+    }
+  };
+  var NotFoundError = class extends BaseError3 {
+    constructor({ name, data, type: type2 = "item" }) {
+      const selector = (() => {
+        if (name)
+          return ` with name "${name}"`;
+        if (data)
+          return ` with data "${data}"`;
+        return "";
+      })();
+      super(`ABI ${type2}${selector} not found.`);
+      Object.defineProperty(this, "name", {
+        enumerable: true,
+        configurable: true,
+        writable: true,
+        value: "AbiItem.NotFoundError"
+      });
+    }
+  };
+
+  // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/AbiConstructor.js
+  init_Hex();
+  function encode3(...parameters) {
+    const [abiConstructor, options] = (() => {
+      if (Array.isArray(parameters[0])) {
+        const [abi2, options2] = parameters;
+        return [fromAbi2(abi2), options2];
+      }
+      return parameters;
+    })();
+    const { bytecode, args } = options;
+    return concat3(bytecode, abiConstructor.inputs?.length && args?.length ? encode2(abiConstructor.inputs, args) : "0x");
+  }
+  function from11(abiConstructor) {
+    return from10(abiConstructor);
+  }
+  function fromAbi2(abi2) {
+    const item = abi2.find((item2) => item2.type === "constructor");
+    if (!item)
+      throw new NotFoundError({ name: "constructor" });
+    return item;
+  }
+
+  // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/AbiFunction.js
+  init_Hex();
+  function encodeData2(...parameters) {
+    const [abiFunction, args = []] = (() => {
+      if (Array.isArray(parameters[0])) {
+        const [abi2, name, args3] = parameters;
+        return [fromAbi3(abi2, name, { args: args3 }), args3];
+      }
+      const [abiFunction2, args2] = parameters;
+      return [abiFunction2, args2];
+    })();
+    const { overloads } = abiFunction;
+    const item = overloads ? fromAbi3([abiFunction, ...overloads], abiFunction.name, {
+      args
+    }) : abiFunction;
+    const selector = getSelector2(item);
+    const data = args.length > 0 ? encode2(item.inputs, args) : void 0;
+    return data ? concat3(selector, data) : selector;
+  }
+  function from12(abiFunction, options = {}) {
+    return from10(abiFunction, options);
+  }
+  function fromAbi3(abi2, name, options) {
+    const item = fromAbi(abi2, name, options);
+    if (item.type !== "function")
+      throw new NotFoundError({ name, type: "function" });
+    return item;
+  }
+  function getSelector2(abiItem) {
+    return getSelector(abiItem);
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/simulateCalls.js
+  init_parseAccount();
+
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/constants/address.js
+  var ethAddress = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
   var zeroAddress = "0x0000000000000000000000000000000000000000";
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/simulateCalls.js
+  init_contracts();
+  init_base();
+  init_encodeFunctionData();
+  var getBalanceCode = "0x6080604052348015600e575f80fd5b5061016d8061001c5f395ff3fe608060405234801561000f575f80fd5b5060043610610029575f3560e01c8063f8b2cb4f1461002d575b5f80fd5b610047600480360381019061004291906100db565b61005d565b604051610054919061011e565b60405180910390f35b5f8173ffffffffffffffffffffffffffffffffffffffff16319050919050565b5f80fd5b5f73ffffffffffffffffffffffffffffffffffffffff82169050919050565b5f6100aa82610081565b9050919050565b6100ba816100a0565b81146100c4575f80fd5b50565b5f813590506100d5816100b1565b92915050565b5f602082840312156100f0576100ef61007d565b5b5f6100fd848285016100c7565b91505092915050565b5f819050919050565b61011881610106565b82525050565b5f6020820190506101315f83018461010f565b9291505056fea26469706673582212203b9fe929fe995c7cf9887f0bdba8a36dd78e8b73f149b17d2d9ad7cd09d2dc6264736f6c634300081a0033";
+  async function simulateCalls(client, parameters) {
+    const { blockNumber, blockTag, calls, stateOverrides, traceAssetChanges, traceTransfers, validation } = parameters;
+    const account = parameters.account ? parseAccount(parameters.account) : void 0;
+    if (traceAssetChanges && !account)
+      throw new BaseError("`account` is required when `traceAssetChanges` is true");
+    const getBalanceData = account ? encode3(from11("constructor(bytes, bytes)"), {
+      bytecode: deploylessCallViaBytecodeBytecode,
+      args: [
+        getBalanceCode,
+        encodeData2(from12("function getBalance(address)"), [account.address])
+      ]
+    }) : void 0;
+    const assetAddresses = traceAssetChanges ? await Promise.all(parameters.calls.map(async (call2) => {
+      if (!call2.data && !call2.abi)
+        return;
+      const { accessList } = await createAccessList(client, {
+        account: account.address,
+        ...call2,
+        data: call2.abi ? encodeFunctionData(call2) : call2.data
+      });
+      return accessList.map(({ address, storageKeys }) => storageKeys.length > 0 ? address : null);
+    })).then((x) => x.flat().filter(Boolean)) : [];
+    const blocks = await simulateBlocks(client, {
+      blockNumber,
+      blockTag,
+      blocks: [
+        ...traceAssetChanges ? [
+          // ETH pre balances
+          {
+            calls: [{ data: getBalanceData }],
+            stateOverrides
+          },
+          // Asset pre balances
+          {
+            calls: assetAddresses.map((address, i) => ({
+              abi: [
+                from12("function balanceOf(address) returns (uint256)")
+              ],
+              functionName: "balanceOf",
+              args: [account.address],
+              to: address,
+              from: zeroAddress,
+              nonce: i
+            })),
+            stateOverrides: [
+              {
+                address: zeroAddress,
+                nonce: 0
+              }
+            ]
+          }
+        ] : [],
+        {
+          calls: [...calls, {}].map((call2) => ({
+            ...call2,
+            from: account?.address
+          })),
+          stateOverrides
+        },
+        ...traceAssetChanges ? [
+          // ETH post balances
+          {
+            calls: [{ data: getBalanceData }]
+          },
+          // Asset post balances
+          {
+            calls: assetAddresses.map((address, i) => ({
+              abi: [
+                from12("function balanceOf(address) returns (uint256)")
+              ],
+              functionName: "balanceOf",
+              args: [account.address],
+              to: address,
+              from: zeroAddress,
+              nonce: i
+            })),
+            stateOverrides: [
+              {
+                address: zeroAddress,
+                nonce: 0
+              }
+            ]
+          },
+          // Decimals
+          {
+            calls: assetAddresses.map((address, i) => ({
+              to: address,
+              abi: [
+                from12("function decimals() returns (uint256)")
+              ],
+              functionName: "decimals",
+              from: zeroAddress,
+              nonce: i
+            })),
+            stateOverrides: [
+              {
+                address: zeroAddress,
+                nonce: 0
+              }
+            ]
+          },
+          // Token URI
+          {
+            calls: assetAddresses.map((address, i) => ({
+              to: address,
+              abi: [
+                from12("function tokenURI(uint256) returns (string)")
+              ],
+              functionName: "tokenURI",
+              args: [0n],
+              from: zeroAddress,
+              nonce: i
+            })),
+            stateOverrides: [
+              {
+                address: zeroAddress,
+                nonce: 0
+              }
+            ]
+          },
+          // Symbols
+          {
+            calls: assetAddresses.map((address, i) => ({
+              to: address,
+              abi: [from12("function symbol() returns (string)")],
+              functionName: "symbol",
+              from: zeroAddress,
+              nonce: i
+            })),
+            stateOverrides: [
+              {
+                address: zeroAddress,
+                nonce: 0
+              }
+            ]
+          }
+        ] : []
+      ],
+      traceTransfers,
+      validation
+    });
+    const block_results = traceAssetChanges ? blocks[2] : blocks[0];
+    const [block_ethPre, block_assetsPre, , block_ethPost, block_assetsPost, block_decimals, block_tokenURI, block_symbols] = traceAssetChanges ? blocks : [];
+    const { calls: block_calls, ...block } = block_results;
+    const results = block_calls.slice(0, -1) ?? [];
+    const ethPre = block_ethPre?.calls ?? [];
+    const assetsPre = block_assetsPre?.calls ?? [];
+    const balancesPre = [...ethPre, ...assetsPre].map((call2) => call2.status === "success" ? hexToBigInt(call2.data) : null);
+    const ethPost = block_ethPost?.calls ?? [];
+    const assetsPost = block_assetsPost?.calls ?? [];
+    const balancesPost = [...ethPost, ...assetsPost].map((call2) => call2.status === "success" ? hexToBigInt(call2.data) : null);
+    const decimals = (block_decimals?.calls ?? []).map((x) => x.status === "success" ? x.result : null);
+    const symbols = (block_symbols?.calls ?? []).map((x) => x.status === "success" ? x.result : null);
+    const tokenURI = (block_tokenURI?.calls ?? []).map((x) => x.status === "success" ? x.result : null);
+    const changes = [];
+    for (const [i, balancePost] of balancesPost.entries()) {
+      const balancePre = balancesPre[i];
+      if (typeof balancePost !== "bigint")
+        continue;
+      if (typeof balancePre !== "bigint")
+        continue;
+      const decimals_ = decimals[i - 1];
+      const symbol_ = symbols[i - 1];
+      const tokenURI_ = tokenURI[i - 1];
+      const token = (() => {
+        if (i === 0)
+          return {
+            address: ethAddress,
+            decimals: 18,
+            symbol: "ETH"
+          };
+        return {
+          address: assetAddresses[i - 1],
+          decimals: tokenURI_ || decimals_ ? Number(decimals_ ?? 1) : void 0,
+          symbol: symbol_ ?? void 0
+        };
+      })();
+      if (changes.some((change) => change.token.address === token.address))
+        continue;
+      changes.push({
+        token,
+        value: {
+          pre: balancePre,
+          post: balancePost,
+          diff: balancePost - balancePre
+        }
+      });
+    }
+    return {
+      assetChanges: changes,
+      block,
+      results
+    };
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/simulateContract.js
+  init_parseAccount();
+  init_decodeFunctionResult();
+  init_encodeFunctionData();
+  init_call();
+  async function simulateContract(client, parameters) {
+    const { abi: abi2, address, args, dataSuffix, functionName, ...callRequest } = parameters;
+    const account = callRequest.account ? parseAccount(callRequest.account) : client.account;
+    const calldata = encodeFunctionData({ abi: abi2, args, functionName });
+    try {
+      const { data } = await getAction(client, call, "call")({
+        batch: false,
+        data: `${calldata}${dataSuffix ? dataSuffix.replace("0x", "") : ""}`,
+        to: address,
+        ...callRequest,
+        account
+      });
+      const result = decodeFunctionResult({
+        abi: abi2,
+        args,
+        functionName,
+        data: data || "0x"
+      });
+      const minimizedAbi = abi2.filter((abiItem) => "name" in abiItem && abiItem.name === parameters.functionName);
+      return {
+        result,
+        request: {
+          abi: minimizedAbi,
+          address,
+          args,
+          dataSuffix,
+          functionName,
+          ...callRequest,
+          account
+        }
+      };
+    } catch (error) {
+      throw getContractError(error, {
+        abi: abi2,
+        address,
+        args,
+        docsPath: "/docs/contract/simulateContract",
+        functionName,
+        sender: account?.address
+      });
+    }
+  }
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/uninstallFilter.js
   async function uninstallFilter(_client, { filter }) {
     return filter.request({
       method: "eth_uninstallFilter",
       params: [filter.id]
+    });
+  }
+
+  // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/erc6492/SignatureErc6492.js
+  var SignatureErc6492_exports = {};
+  __export(SignatureErc6492_exports, {
+    InvalidWrappedSignatureError: () => InvalidWrappedSignatureError2,
+    assert: () => assert7,
+    from: () => from13,
+    magicBytes: () => magicBytes2,
+    universalSignatureValidatorAbi: () => universalSignatureValidatorAbi,
+    universalSignatureValidatorBytecode: () => universalSignatureValidatorBytecode,
+    unwrap: () => unwrap2,
+    validate: () => validate6,
+    wrap: () => wrap2
+  });
+  init_Errors();
+  init_Hex();
+  var magicBytes2 = "0x6492649264926492649264926492649264926492649264926492649264926492";
+  var universalSignatureValidatorBytecode = "0x608060405234801561001057600080fd5b5060405161069438038061069483398101604081905261002f9161051e565b600061003c848484610048565b9050806000526001601ff35b60007f64926492649264926492649264926492649264926492649264926492649264926100748361040c565b036101e7576000606080848060200190518101906100929190610577565b60405192955090935091506000906001600160a01b038516906100b69085906105dd565b6000604051808303816000865af19150503d80600081146100f3576040519150601f19603f3d011682016040523d82523d6000602084013e6100f8565b606091505b50509050876001600160a01b03163b60000361016057806101605760405162461bcd60e51b815260206004820152601e60248201527f5369676e617475726556616c696461746f723a206465706c6f796d656e74000060448201526064015b60405180910390fd5b604051630b135d3f60e11b808252906001600160a01b038a1690631626ba7e90610190908b9087906004016105f9565b602060405180830381865afa1580156101ad573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906101d19190610633565b6001600160e01b03191614945050505050610405565b6001600160a01b0384163b1561027a57604051630b135d3f60e11b808252906001600160a01b03861690631626ba7e9061022790879087906004016105f9565b602060405180830381865afa158015610244573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906102689190610633565b6001600160e01b031916149050610405565b81516041146102df5760405162461bcd60e51b815260206004820152603a602482015260008051602061067483398151915260448201527f3a20696e76616c6964207369676e6174757265206c656e6774680000000000006064820152608401610157565b6102e7610425565b5060208201516040808401518451859392600091859190811061030c5761030c61065d565b016020015160f81c9050601b811480159061032b57508060ff16601c14155b1561038c5760405162461bcd60e51b815260206004820152603b602482015260008051602061067483398151915260448201527f3a20696e76616c6964207369676e617475726520762076616c756500000000006064820152608401610157565b60408051600081526020810180835289905260ff83169181019190915260608101849052608081018390526001600160a01b0389169060019060a0016020604051602081039080840390855afa1580156103ea573d6000803e3d6000fd5b505050602060405103516001600160a01b0316149450505050505b9392505050565b600060208251101561041d57600080fd5b508051015190565b60405180606001604052806003906020820280368337509192915050565b6001600160a01b038116811461045857600080fd5b50565b634e487b7160e01b600052604160045260246000fd5b60005b8381101561048c578181015183820152602001610474565b50506000910152565b600082601f8301126104a657600080fd5b81516001600160401b038111156104bf576104bf61045b565b604051601f8201601f19908116603f011681016001600160401b03811182821017156104ed576104ed61045b565b60405281815283820160200185101561050557600080fd5b610516826020830160208701610471565b949350505050565b60008060006060848603121561053357600080fd5b835161053e81610443565b6020850151604086015191945092506001600160401b0381111561056157600080fd5b61056d86828701610495565b9150509250925092565b60008060006060848603121561058c57600080fd5b835161059781610443565b60208501519093506001600160401b038111156105b357600080fd5b6105bf86828701610495565b604086015190935090506001600160401b0381111561056157600080fd5b600082516105ef818460208701610471565b9190910192915050565b828152604060208201526000825180604084015261061e816060850160208701610471565b601f01601f1916919091016060019392505050565b60006020828403121561064557600080fd5b81516001600160e01b03198116811461040557600080fd5b634e487b7160e01b600052603260045260246000fdfe5369676e617475726556616c696461746f72237265636f7665725369676e6572";
+  var universalSignatureValidatorAbi = [
+    {
+      inputs: [
+        {
+          name: "_signer",
+          type: "address"
+        },
+        {
+          name: "_hash",
+          type: "bytes32"
+        },
+        {
+          name: "_signature",
+          type: "bytes"
+        }
+      ],
+      stateMutability: "nonpayable",
+      type: "constructor"
+    },
+    {
+      inputs: [
+        {
+          name: "_signer",
+          type: "address"
+        },
+        {
+          name: "_hash",
+          type: "bytes32"
+        },
+        {
+          name: "_signature",
+          type: "bytes"
+        }
+      ],
+      outputs: [
+        {
+          type: "bool"
+        }
+      ],
+      stateMutability: "nonpayable",
+      type: "function",
+      name: "isValidSig"
+    }
+  ];
+  function assert7(wrapped) {
+    if (slice3(wrapped, -32) !== magicBytes2)
+      throw new InvalidWrappedSignatureError2(wrapped);
+  }
+  function from13(wrapped) {
+    if (typeof wrapped === "string")
+      return unwrap2(wrapped);
+    return wrapped;
+  }
+  function unwrap2(wrapped) {
+    assert7(wrapped);
+    const [to2, data, signature] = decode(from5("address, bytes, bytes"), wrapped);
+    return { data, signature, to: to2 };
+  }
+  function wrap2(value) {
+    const { data, signature, to: to2 } = value;
+    return concat3(encode2(from5("address, bytes, bytes"), [
+      to2,
+      data,
+      signature
+    ]), magicBytes2);
+  }
+  function validate6(wrapped) {
+    try {
+      assert7(wrapped);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  var InvalidWrappedSignatureError2 = class extends BaseError3 {
+    constructor(wrapped) {
+      super(`Value \`${wrapped}\` is an invalid ERC-6492 wrapped signature.`);
+      Object.defineProperty(this, "name", {
+        enumerable: true,
+        configurable: true,
+        writable: true,
+        value: "SignatureErc6492.InvalidWrappedSignatureError"
+      });
+    }
+  };
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/verifyHash.js
+  init_abis();
+  init_contracts();
+  init_contract();
+  init_encodeDeployData();
+  init_encodeFunctionData();
+  init_getAddress();
+  init_isAddressEqual();
+  init_concat();
+  init_isHex();
+  init_fromHex();
+  init_toHex();
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/signature/serializeSignature.js
+  init_secp256k1();
+  init_fromHex();
+  init_toBytes();
+  function serializeSignature({ r, s, to: to2 = "hex", v, yParity }) {
+    const yParity_ = (() => {
+      if (yParity === 0 || yParity === 1)
+        return yParity;
+      if (v && (v === 27n || v === 28n || v >= 35n))
+        return v % 2n === 0n ? 1 : 0;
+      throw new Error("Invalid `v` or `yParity` value");
+    })();
+    const signature = `0x${new secp256k1.Signature(hexToBigInt(r), hexToBigInt(s)).toCompactHex()}${yParity_ === 0 ? "1b" : "1c"}`;
+    if (to2 === "hex")
+      return signature;
+    return hexToBytes(signature);
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/verifyHash.js
+  init_call();
+  async function verifyHash(client, parameters) {
+    const { address, chain = client.chain, hash: hash5, erc6492VerifierAddress: verifierAddress = parameters.universalSignatureVerifierAddress ?? chain?.contracts?.erc6492Verifier?.address, multicallAddress = parameters.multicallAddress ?? chain?.contracts?.multicall3?.address } = parameters;
+    if (chain?.verifyHash)
+      return await chain.verifyHash(client, parameters);
+    const signature = (() => {
+      const signature2 = parameters.signature;
+      if (isHex(signature2))
+        return signature2;
+      if (typeof signature2 === "object" && "r" in signature2 && "s" in signature2)
+        return serializeSignature(signature2);
+      return bytesToHex(signature2);
+    })();
+    try {
+      if (SignatureErc8010_exports.validate(signature))
+        return await verifyErc8010(client, {
+          ...parameters,
+          multicallAddress,
+          signature
+        });
+      return await verifyErc6492(client, {
+        ...parameters,
+        verifierAddress,
+        signature
+      });
+    } catch (error) {
+      try {
+        const verified = isAddressEqual(getAddress(address), await recoverAddress({ hash: hash5, signature }));
+        if (verified)
+          return true;
+      } catch {
+      }
+      if (error instanceof VerificationError) {
+        return false;
+      }
+      throw error;
+    }
+  }
+  async function verifyErc8010(client, parameters) {
+    const { address, blockNumber, blockTag, hash: hash5, multicallAddress } = parameters;
+    const { authorization: authorization_ox, data: initData, signature, to: to2 } = SignatureErc8010_exports.unwrap(parameters.signature);
+    const code = await getCode(client, {
+      address,
+      blockNumber,
+      blockTag
+    });
+    if (code === concatHex(["0xef0100", authorization_ox.address]))
+      return await verifyErc1271(client, {
+        address,
+        blockNumber,
+        blockTag,
+        hash: hash5,
+        signature
+      });
+    const authorization = {
+      address: authorization_ox.address,
+      chainId: Number(authorization_ox.chainId),
+      nonce: Number(authorization_ox.nonce),
+      r: numberToHex(authorization_ox.r, { size: 32 }),
+      s: numberToHex(authorization_ox.s, { size: 32 }),
+      yParity: authorization_ox.yParity
+    };
+    const valid = await verifyAuthorization({
+      address,
+      authorization
+    });
+    if (!valid)
+      throw new VerificationError();
+    const results = await getAction(client, readContract, "readContract")({
+      ...multicallAddress ? { address: multicallAddress } : { code: multicall3Bytecode },
+      authorizationList: [authorization],
+      abi: multicall3Abi,
+      blockNumber,
+      blockTag: "pending",
+      functionName: "aggregate3",
+      args: [
+        [
+          ...initData ? [
+            {
+              allowFailure: true,
+              target: to2 ?? address,
+              callData: initData
+            }
+          ] : [],
+          {
+            allowFailure: true,
+            target: address,
+            callData: encodeFunctionData({
+              abi: erc1271Abi,
+              functionName: "isValidSignature",
+              args: [hash5, signature]
+            })
+          }
+        ]
+      ]
+    });
+    const data = results[results.length - 1]?.returnData;
+    if (data?.startsWith("0x1626ba7e"))
+      return true;
+    throw new VerificationError();
+  }
+  async function verifyErc6492(client, parameters) {
+    const { address, factory, factoryData, hash: hash5, signature, verifierAddress, ...rest } = parameters;
+    const wrappedSignature = await (async () => {
+      if (!factory && !factoryData)
+        return signature;
+      if (SignatureErc6492_exports.validate(signature))
+        return signature;
+      return SignatureErc6492_exports.wrap({
+        data: factoryData,
+        signature,
+        to: factory
+      });
+    })();
+    const args = verifierAddress ? {
+      to: verifierAddress,
+      data: encodeFunctionData({
+        abi: erc6492SignatureValidatorAbi,
+        functionName: "isValidSig",
+        args: [address, hash5, wrappedSignature]
+      }),
+      ...rest
+    } : {
+      data: encodeDeployData({
+        abi: erc6492SignatureValidatorAbi,
+        args: [address, hash5, wrappedSignature],
+        bytecode: erc6492SignatureValidatorByteCode
+      }),
+      ...rest
+    };
+    const { data } = await getAction(client, call, "call")(args).catch((error) => {
+      if (error instanceof CallExecutionError)
+        throw new VerificationError();
+      throw error;
+    });
+    if (hexToBool(data ?? "0x0"))
+      return true;
+    throw new VerificationError();
+  }
+  async function verifyErc1271(client, parameters) {
+    const { address, blockNumber, blockTag, hash: hash5, signature } = parameters;
+    const result = await getAction(client, readContract, "readContract")({
+      address,
+      abi: erc1271Abi,
+      args: [hash5, signature],
+      blockNumber,
+      blockTag,
+      functionName: "isValidSignature"
+    }).catch((error) => {
+      if (error instanceof ContractFunctionExecutionError)
+        throw new VerificationError();
+      throw error;
+    });
+    if (result.startsWith("0x1626ba7e"))
+      return true;
+    throw new VerificationError();
+  }
+  var VerificationError = class extends Error {
+  };
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/verifyMessage.js
+  async function verifyMessage(client, { address, message, factory, factoryData, signature, ...callRequest }) {
+    const hash5 = hashMessage(message);
+    return getAction(client, verifyHash, "verifyHash")({
+      address,
+      factory,
+      factoryData,
+      hash: hash5,
+      signature,
+      ...callRequest
+    });
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/verifyTypedData.js
+  async function verifyTypedData(client, parameters) {
+    const { address, factory, factoryData, signature, message, primaryType, types: types2, domain, ...callRequest } = parameters;
+    const hash5 = hashTypedData({ message, primaryType, types: types2, domain });
+    return getAction(client, verifyHash, "verifyHash")({
+      address,
+      factory,
+      factoryData,
+      hash: hash5,
+      signature,
+      ...callRequest
     });
   }
 
@@ -35448,14 +38418,14 @@ ${prettyStateOverride(stateOverride)}`;
     const {
       checkReplacement = true,
       confirmations = 1,
-      hash: hash4,
+      hash: hash5,
       onReplaced,
       retryCount = 6,
       retryDelay = ({ count }) => ~~(1 << count) * 200,
       // exponential backoff
       timeout = 18e4
     } = parameters;
-    const observerId = stringify(["waitForTransactionReceipt", client.uid, hash4]);
+    const observerId = stringify(["waitForTransactionReceipt", client.uid, hash5]);
     const pollingInterval = (() => {
       if (parameters.pollingInterval)
         return parameters.pollingInterval;
@@ -35473,10 +38443,10 @@ ${prettyStateOverride(stateOverride)}`;
     const timer = timeout ? setTimeout(() => {
       _unwatch?.();
       _unobserve?.();
-      reject(new WaitForTransactionReceiptTimeoutError({ hash: hash4 }));
+      reject(new WaitForTransactionReceiptTimeoutError({ hash: hash5 }));
     }, timeout) : void 0;
     _unobserve = observe(observerId, { onReplaced, resolve, reject }, async (emit) => {
-      receipt = await getAction(client, getTransactionReceipt, "getTransactionReceipt")({ hash: hash4 }).catch(() => void 0);
+      receipt = await getAction(client, getTransactionReceipt, "getTransactionReceipt")({ hash: hash5 }).catch(() => void 0);
       if (receipt && confirmations <= 1) {
         clearTimeout(timer);
         emit.resolve(receipt);
@@ -35508,7 +38478,7 @@ ${prettyStateOverride(stateOverride)}`;
             if (checkReplacement && !transaction) {
               retrying = true;
               await withRetry(async () => {
-                transaction = await getAction(client, getTransaction, "getTransaction")({ hash: hash4 });
+                transaction = await getAction(client, getTransaction, "getTransaction")({ hash: hash5 });
                 if (transaction.blockNumber)
                   blockNumber = transaction.blockNumber;
               }, {
@@ -35517,7 +38487,7 @@ ${prettyStateOverride(stateOverride)}`;
               });
               retrying = false;
             }
-            receipt = await getAction(client, getTransactionReceipt, "getTransactionReceipt")({ hash: hash4 });
+            receipt = await getAction(client, getTransactionReceipt, "getTransactionReceipt")({ hash: hash5 });
             if (confirmations > 1 && (!receipt.blockNumber || blockNumber - receipt.blockNumber + 1n < confirmations))
               return;
             done(() => emit.resolve(receipt));
@@ -35539,7 +38509,7 @@ ${prettyStateOverride(stateOverride)}`;
                   shouldRetry: ({ error }) => error instanceof BlockNotFoundError
                 });
                 retrying = false;
-                const replacementTransaction = block.transactions.find(({ from: from17, nonce: nonce2 }) => from17 === replacedTransaction.from && nonce2 === replacedTransaction.nonce);
+                const replacementTransaction = block.transactions.find(({ from: from24, nonce: nonce2 }) => from24 === replacedTransaction.from && nonce2 === replacedTransaction.nonce);
                 if (!replacementTransaction)
                   return;
                 receipt = await getAction(client, getTransactionReceipt, "getTransactionReceipt")({
@@ -35575,12 +38545,134 @@ ${prettyStateOverride(stateOverride)}`;
     return promise;
   }
 
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/watchBlocks.js
+  init_stringify();
+  function watchBlocks(client, { blockTag = client.experimental_blockTag ?? "latest", emitMissed = false, emitOnBegin = false, onBlock, onError, includeTransactions: includeTransactions_, poll: poll_, pollingInterval = client.pollingInterval }) {
+    const enablePolling = (() => {
+      if (typeof poll_ !== "undefined")
+        return poll_;
+      if (client.transport.type === "webSocket" || client.transport.type === "ipc")
+        return false;
+      if (client.transport.type === "fallback" && (client.transport.transports[0].config.type === "webSocket" || client.transport.transports[0].config.type === "ipc"))
+        return false;
+      return true;
+    })();
+    const includeTransactions = includeTransactions_ ?? false;
+    let prevBlock;
+    const pollBlocks = () => {
+      const observerId = stringify([
+        "watchBlocks",
+        client.uid,
+        blockTag,
+        emitMissed,
+        emitOnBegin,
+        includeTransactions,
+        pollingInterval
+      ]);
+      return observe(observerId, { onBlock, onError }, (emit) => poll(async () => {
+        try {
+          const block = await getAction(client, getBlock, "getBlock")({
+            blockTag,
+            includeTransactions
+          });
+          if (block.number !== null && prevBlock?.number != null) {
+            if (block.number === prevBlock.number)
+              return;
+            if (block.number - prevBlock.number > 1 && emitMissed) {
+              for (let i = prevBlock?.number + 1n; i < block.number; i++) {
+                const block2 = await getAction(client, getBlock, "getBlock")({
+                  blockNumber: i,
+                  includeTransactions
+                });
+                emit.onBlock(block2, prevBlock);
+                prevBlock = block2;
+              }
+            }
+          }
+          if (
+            // If no previous block exists, emit.
+            prevBlock?.number == null || // If the block tag is "pending" with no block number, emit.
+            blockTag === "pending" && block?.number == null || // If the next block number is greater than the previous block number, emit.
+            // We don't want to emit blocks in the past.
+            block.number !== null && block.number > prevBlock.number
+          ) {
+            emit.onBlock(block, prevBlock);
+            prevBlock = block;
+          }
+        } catch (err) {
+          emit.onError?.(err);
+        }
+      }, {
+        emitOnBegin,
+        interval: pollingInterval
+      }));
+    };
+    const subscribeBlocks = () => {
+      let active = true;
+      let emitFetched = true;
+      let unsubscribe = () => active = false;
+      (async () => {
+        try {
+          if (emitOnBegin) {
+            getAction(client, getBlock, "getBlock")({
+              blockTag,
+              includeTransactions
+            }).then((block) => {
+              if (!active)
+                return;
+              if (!emitFetched)
+                return;
+              onBlock(block, void 0);
+              emitFetched = false;
+            }).catch(onError);
+          }
+          const transport = (() => {
+            if (client.transport.type === "fallback") {
+              const transport2 = client.transport.transports.find((transport3) => transport3.config.type === "webSocket" || transport3.config.type === "ipc");
+              if (!transport2)
+                return client.transport;
+              return transport2.value;
+            }
+            return client.transport;
+          })();
+          const { unsubscribe: unsubscribe_ } = await transport.subscribe({
+            params: ["newHeads"],
+            async onData(data) {
+              if (!active)
+                return;
+              const block = await getAction(client, getBlock, "getBlock")({
+                blockNumber: data.result?.number,
+                includeTransactions
+              }).catch(() => {
+              });
+              if (!active)
+                return;
+              onBlock(block, prevBlock);
+              emitFetched = false;
+              prevBlock = block;
+            },
+            onError(error) {
+              onError?.(error);
+            }
+          });
+          unsubscribe = unsubscribe_;
+          if (!active)
+            unsubscribe();
+        } catch (err) {
+          onError?.(err);
+        }
+      })();
+      return () => unsubscribe();
+    };
+    return enablePolling ? pollBlocks() : subscribeBlocks();
+  }
+
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/watchContractEvent.js
   init_abi();
   init_rpc();
   init_stringify();
   function watchContractEvent(client, parameters) {
-    const { abi, address, args, batch = true, eventName, fromBlock, onError, onLogs, poll: poll_, pollingInterval = client.pollingInterval, strict: strict_ } = parameters;
+    const { abi: abi2, address, args, batch = true, eventName, fromBlock, onError, onLogs, poll: poll_, pollingInterval = client.pollingInterval, strict: strict_ } = parameters;
     const enablePolling = (() => {
       if (typeof poll_ !== "undefined")
         return poll_;
@@ -35615,7 +38707,7 @@ ${prettyStateOverride(stateOverride)}`;
           if (!initialized) {
             try {
               filter = await getAction(client, createContractEventFilter, "createContractEventFilter")({
-                abi,
+                abi: abi2,
                 address,
                 args,
                 eventName,
@@ -35635,7 +38727,7 @@ ${prettyStateOverride(stateOverride)}`;
               const blockNumber = await getAction(client, getBlockNumber, "getBlockNumber")({});
               if (previousBlockNumber && previousBlockNumber < blockNumber) {
                 logs = await getAction(client, getContractEvents, "getContractEvents")({
-                  abi,
+                  abi: abi2,
                   address,
                   args,
                   eventName,
@@ -35699,7 +38791,7 @@ ${prettyStateOverride(stateOverride)}`;
               return client.transport;
             })();
             const topics = eventName ? encodeEventTopics({
-              abi,
+              abi: abi2,
               eventName,
               args
             }) : [];
@@ -35711,7 +38803,7 @@ ${prettyStateOverride(stateOverride)}`;
                 const log = data.result;
                 try {
                   const { eventName: eventName2, args: args2 } = decodeEventLog({
-                    abi,
+                    abi: abi2,
                     data: log.data,
                     topics: log.topics,
                     strict: strict_
@@ -35753,6 +38845,268 @@ ${prettyStateOverride(stateOverride)}`;
     };
     return enablePolling ? pollContractEvent() : subscribeContractEvent();
   }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/watchEvent.js
+  init_abi();
+  init_rpc();
+  init_stringify();
+  function watchEvent(client, { address, args, batch = true, event, events, fromBlock, onError, onLogs, poll: poll_, pollingInterval = client.pollingInterval, strict: strict_ }) {
+    const enablePolling = (() => {
+      if (typeof poll_ !== "undefined")
+        return poll_;
+      if (typeof fromBlock === "bigint")
+        return true;
+      if (client.transport.type === "webSocket" || client.transport.type === "ipc")
+        return false;
+      if (client.transport.type === "fallback" && (client.transport.transports[0].config.type === "webSocket" || client.transport.transports[0].config.type === "ipc"))
+        return false;
+      return true;
+    })();
+    const strict = strict_ ?? false;
+    const pollEvent = () => {
+      const observerId = stringify([
+        "watchEvent",
+        address,
+        args,
+        batch,
+        client.uid,
+        event,
+        pollingInterval,
+        fromBlock
+      ]);
+      return observe(observerId, { onLogs, onError }, (emit) => {
+        let previousBlockNumber;
+        if (fromBlock !== void 0)
+          previousBlockNumber = fromBlock - 1n;
+        let filter;
+        let initialized = false;
+        const unwatch = poll(async () => {
+          if (!initialized) {
+            try {
+              filter = await getAction(client, createEventFilter, "createEventFilter")({
+                address,
+                args,
+                event,
+                events,
+                strict,
+                fromBlock
+              });
+            } catch {
+            }
+            initialized = true;
+            return;
+          }
+          try {
+            let logs;
+            if (filter) {
+              logs = await getAction(client, getFilterChanges, "getFilterChanges")({ filter });
+            } else {
+              const blockNumber = await getAction(client, getBlockNumber, "getBlockNumber")({});
+              if (previousBlockNumber && previousBlockNumber !== blockNumber) {
+                logs = await getAction(client, getLogs, "getLogs")({
+                  address,
+                  args,
+                  event,
+                  events,
+                  fromBlock: previousBlockNumber + 1n,
+                  toBlock: blockNumber
+                });
+              } else {
+                logs = [];
+              }
+              previousBlockNumber = blockNumber;
+            }
+            if (logs.length === 0)
+              return;
+            if (batch)
+              emit.onLogs(logs);
+            else
+              for (const log of logs)
+                emit.onLogs([log]);
+          } catch (err) {
+            if (filter && err instanceof InvalidInputRpcError)
+              initialized = false;
+            emit.onError?.(err);
+          }
+        }, {
+          emitOnBegin: true,
+          interval: pollingInterval
+        });
+        return async () => {
+          if (filter)
+            await getAction(client, uninstallFilter, "uninstallFilter")({ filter });
+          unwatch();
+        };
+      });
+    };
+    const subscribeEvent = () => {
+      let active = true;
+      let unsubscribe = () => active = false;
+      (async () => {
+        try {
+          const transport = (() => {
+            if (client.transport.type === "fallback") {
+              const transport2 = client.transport.transports.find((transport3) => transport3.config.type === "webSocket" || transport3.config.type === "ipc");
+              if (!transport2)
+                return client.transport;
+              return transport2.value;
+            }
+            return client.transport;
+          })();
+          const events_ = events ?? (event ? [event] : void 0);
+          let topics = [];
+          if (events_) {
+            const encoded = events_.flatMap((event2) => encodeEventTopics({
+              abi: [event2],
+              eventName: event2.name,
+              args
+            }));
+            topics = [encoded];
+            if (event)
+              topics = topics[0];
+          }
+          const { unsubscribe: unsubscribe_ } = await transport.subscribe({
+            params: ["logs", { address, topics }],
+            onData(data) {
+              if (!active)
+                return;
+              const log = data.result;
+              try {
+                const { eventName, args: args2 } = decodeEventLog({
+                  abi: events_ ?? [],
+                  data: log.data,
+                  topics: log.topics,
+                  strict
+                });
+                const formatted = formatLog(log, { args: args2, eventName });
+                onLogs([formatted]);
+              } catch (err) {
+                let eventName;
+                let isUnnamed;
+                if (err instanceof DecodeLogDataMismatch || err instanceof DecodeLogTopicsMismatch) {
+                  if (strict_)
+                    return;
+                  eventName = err.abiItem.name;
+                  isUnnamed = err.abiItem.inputs?.some((x) => !("name" in x && x.name));
+                }
+                const formatted = formatLog(log, {
+                  args: isUnnamed ? [] : {},
+                  eventName
+                });
+                onLogs([formatted]);
+              }
+            },
+            onError(error) {
+              onError?.(error);
+            }
+          });
+          unsubscribe = unsubscribe_;
+          if (!active)
+            unsubscribe();
+        } catch (err) {
+          onError?.(err);
+        }
+      })();
+      return () => unsubscribe();
+    };
+    return enablePolling ? pollEvent() : subscribeEvent();
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/public/watchPendingTransactions.js
+  init_stringify();
+  function watchPendingTransactions(client, { batch = true, onError, onTransactions, poll: poll_, pollingInterval = client.pollingInterval }) {
+    const enablePolling = typeof poll_ !== "undefined" ? poll_ : client.transport.type !== "webSocket" && client.transport.type !== "ipc";
+    const pollPendingTransactions = () => {
+      const observerId = stringify([
+        "watchPendingTransactions",
+        client.uid,
+        batch,
+        pollingInterval
+      ]);
+      return observe(observerId, { onTransactions, onError }, (emit) => {
+        let filter;
+        const unwatch = poll(async () => {
+          try {
+            if (!filter) {
+              try {
+                filter = await getAction(client, createPendingTransactionFilter, "createPendingTransactionFilter")({});
+                return;
+              } catch (err) {
+                unwatch();
+                throw err;
+              }
+            }
+            const hashes = await getAction(client, getFilterChanges, "getFilterChanges")({ filter });
+            if (hashes.length === 0)
+              return;
+            if (batch)
+              emit.onTransactions(hashes);
+            else
+              for (const hash5 of hashes)
+                emit.onTransactions([hash5]);
+          } catch (err) {
+            emit.onError?.(err);
+          }
+        }, {
+          emitOnBegin: true,
+          interval: pollingInterval
+        });
+        return async () => {
+          if (filter)
+            await getAction(client, uninstallFilter, "uninstallFilter")({ filter });
+          unwatch();
+        };
+      });
+    };
+    const subscribePendingTransactions = () => {
+      let active = true;
+      let unsubscribe = () => active = false;
+      (async () => {
+        try {
+          const { unsubscribe: unsubscribe_ } = await client.transport.subscribe({
+            params: ["newPendingTransactions"],
+            onData(data) {
+              if (!active)
+                return;
+              const transaction = data.result;
+              onTransactions([transaction]);
+            },
+            onError(error) {
+              onError?.(error);
+            }
+          });
+          unsubscribe = unsubscribe_;
+          if (!active)
+            unsubscribe();
+        } catch (err) {
+          onError?.(err);
+        }
+      })();
+      return () => unsubscribe();
+    };
+    return enablePolling ? pollPendingTransactions() : subscribePendingTransactions();
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/wallet/addChain.js
+  init_toHex();
+  async function addChain(client, { chain }) {
+    const { id, name, nativeCurrency, rpcUrls, blockExplorers } = chain;
+    await client.request({
+      method: "wallet_addEthereumChain",
+      params: [
+        {
+          chainId: numberToHex(id),
+          chainName: name,
+          nativeCurrency,
+          rpcUrls: rpcUrls.default.http,
+          blockExplorerUrls: blockExplorers ? Object.values(blockExplorers).map(({ url }) => url) : void 0
+        }
+      ]
+    }, { dedupe: true, retryCount: 0 });
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/wallet/deployContract.js
+  init_encodeDeployData();
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/wallet/sendTransaction.js
   init_parseAccount();
@@ -35865,9 +39219,9 @@ ${prettyStateOverride(stateOverride)}`;
             return await client.request({
               method: "wallet_sendTransaction",
               params: [request]
-            }, { retryCount: 0 }).then((hash4) => {
+            }, { retryCount: 0 }).then((hash5) => {
               supportsWalletNamespace.set(client.uid, true);
-              return hash4;
+              return hash5;
             }).catch((e2) => {
               const walletNamespaceError = e2;
               if (walletNamespaceError.name === "MethodNotFoundRpcError" || walletNamespaceError.name === "MethodNotSupportedRpcError") {
@@ -35930,6 +39284,371 @@ ${prettyStateOverride(stateOverride)}`;
         chain: parameters.chain || void 0
       });
     }
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/wallet/deployContract.js
+  function deployContract(walletClient, parameters) {
+    const { abi: abi2, args, bytecode, ...request } = parameters;
+    const calldata = encodeDeployData({ abi: abi2, args, bytecode });
+    return sendTransaction(walletClient, {
+      ...request,
+      ...request.authorizationList ? { to: null } : {},
+      data: calldata
+    });
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/wallet/getAddresses.js
+  init_getAddress();
+  async function getAddresses(client) {
+    if (client.account?.type === "local")
+      return [client.account.address];
+    const addresses = await client.request({ method: "eth_accounts" }, { dedupe: true });
+    return addresses.map((address) => checksumAddress(address));
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/wallet/getCallsStatus.js
+  init_slice();
+  init_trim();
+  init_fromHex();
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/wallet/sendCalls.js
+  init_parseAccount();
+  init_base();
+  init_rpc();
+  init_encodeFunctionData();
+  init_concat();
+  init_fromHex();
+  init_toHex();
+  var fallbackMagicIdentifier = "0x5792579257925792579257925792579257925792579257925792579257925792";
+  var fallbackTransactionErrorMagicIdentifier = numberToHex(0, {
+    size: 32
+  });
+  async function sendCalls(client, parameters) {
+    const { account: account_ = client.account, capabilities, chain = client.chain, experimental_fallback, experimental_fallbackDelay = 32, forceAtomic = false, id, version: version6 = "2.0.0" } = parameters;
+    const account = account_ ? parseAccount(account_) : null;
+    const calls = parameters.calls.map((call_) => {
+      const call2 = call_;
+      const data = call2.abi ? encodeFunctionData({
+        abi: call2.abi,
+        functionName: call2.functionName,
+        args: call2.args
+      }) : call2.data;
+      return {
+        data: call2.dataSuffix && data ? concat([data, call2.dataSuffix]) : data,
+        to: call2.to,
+        value: call2.value ? numberToHex(call2.value) : void 0
+      };
+    });
+    try {
+      const response = await client.request({
+        method: "wallet_sendCalls",
+        params: [
+          {
+            atomicRequired: forceAtomic,
+            calls,
+            capabilities,
+            chainId: numberToHex(chain.id),
+            from: account?.address,
+            id,
+            version: version6
+          }
+        ]
+      }, { retryCount: 0 });
+      if (typeof response === "string")
+        return { id: response };
+      return response;
+    } catch (err) {
+      const error = err;
+      if (experimental_fallback && (error.name === "MethodNotFoundRpcError" || error.name === "MethodNotSupportedRpcError" || error.name === "UnknownRpcError" || error.details.toLowerCase().includes("does not exist / is not available") || error.details.toLowerCase().includes("missing or invalid. request()") || error.details.toLowerCase().includes("did not match any variant of untagged enum") || error.details.toLowerCase().includes("account upgraded to unsupported contract") || error.details.toLowerCase().includes("eip-7702 not supported") || error.details.toLowerCase().includes("unsupported wc_ method") || // magic.link
+      error.details.toLowerCase().includes("feature toggled misconfigured") || // Trust Wallet
+      error.details.toLowerCase().includes("jsonrpcengine: response has no error or result for request"))) {
+        if (capabilities) {
+          const hasNonOptionalCapability = Object.values(capabilities).some((capability) => !capability.optional);
+          if (hasNonOptionalCapability) {
+            const message = "non-optional `capabilities` are not supported on fallback to `eth_sendTransaction`.";
+            throw new UnsupportedNonOptionalCapabilityError(new BaseError(message, {
+              details: message
+            }));
+          }
+        }
+        if (forceAtomic && calls.length > 1) {
+          const message = "`forceAtomic` is not supported on fallback to `eth_sendTransaction`.";
+          throw new AtomicityNotSupportedError(new BaseError(message, {
+            details: message
+          }));
+        }
+        const promises = [];
+        for (const call2 of calls) {
+          const promise = sendTransaction(client, {
+            account,
+            chain,
+            data: call2.data,
+            to: call2.to,
+            value: call2.value ? hexToBigInt(call2.value) : void 0
+          });
+          promises.push(promise);
+          if (experimental_fallbackDelay > 0)
+            await new Promise((resolve) => setTimeout(resolve, experimental_fallbackDelay));
+        }
+        const results = await Promise.allSettled(promises);
+        if (results.every((r) => r.status === "rejected"))
+          throw results[0].reason;
+        const hashes = results.map((result) => {
+          if (result.status === "fulfilled")
+            return result.value;
+          return fallbackTransactionErrorMagicIdentifier;
+        });
+        return {
+          id: concat([
+            ...hashes,
+            numberToHex(chain.id, { size: 32 }),
+            fallbackMagicIdentifier
+          ])
+        };
+      }
+      throw getTransactionError(err, {
+        ...parameters,
+        account,
+        chain: parameters.chain
+      });
+    }
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/wallet/getCallsStatus.js
+  async function getCallsStatus(client, parameters) {
+    async function getStatus(id) {
+      const isTransactions = id.endsWith(fallbackMagicIdentifier.slice(2));
+      if (isTransactions) {
+        const chainId2 = trim(sliceHex(id, -64, -32));
+        const hashes = sliceHex(id, 0, -64).slice(2).match(/.{1,64}/g);
+        const receipts2 = await Promise.all(hashes.map((hash5) => fallbackTransactionErrorMagicIdentifier.slice(2) !== hash5 ? client.request({
+          method: "eth_getTransactionReceipt",
+          params: [`0x${hash5}`]
+        }, { dedupe: true }) : void 0));
+        const status2 = (() => {
+          if (receipts2.some((r) => r === null))
+            return 100;
+          if (receipts2.every((r) => r?.status === "0x1"))
+            return 200;
+          if (receipts2.every((r) => r?.status === "0x0"))
+            return 500;
+          return 600;
+        })();
+        return {
+          atomic: false,
+          chainId: hexToNumber(chainId2),
+          receipts: receipts2.filter(Boolean),
+          status: status2,
+          version: "2.0.0"
+        };
+      }
+      return client.request({
+        method: "wallet_getCallsStatus",
+        params: [id]
+      });
+    }
+    const { atomic = false, chainId, receipts, version: version6 = "2.0.0", ...response } = await getStatus(parameters.id);
+    const [status, statusCode] = (() => {
+      const statusCode2 = response.status;
+      if (statusCode2 >= 100 && statusCode2 < 200)
+        return ["pending", statusCode2];
+      if (statusCode2 >= 200 && statusCode2 < 300)
+        return ["success", statusCode2];
+      if (statusCode2 >= 300 && statusCode2 < 700)
+        return ["failure", statusCode2];
+      if (statusCode2 === "CONFIRMED")
+        return ["success", 200];
+      if (statusCode2 === "PENDING")
+        return ["pending", 100];
+      return [void 0, statusCode2];
+    })();
+    return {
+      ...response,
+      atomic,
+      // @ts-expect-error: for backwards compatibility
+      chainId: chainId ? hexToNumber(chainId) : void 0,
+      receipts: receipts?.map((receipt) => ({
+        ...receipt,
+        blockNumber: hexToBigInt(receipt.blockNumber),
+        gasUsed: hexToBigInt(receipt.gasUsed),
+        status: receiptStatuses[receipt.status]
+      })) ?? [],
+      statusCode,
+      status,
+      version: version6
+    };
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/wallet/getCapabilities.js
+  init_parseAccount();
+  init_toHex();
+  async function getCapabilities(client, parameters = {}) {
+    const { account = client.account, chainId } = parameters;
+    const account_ = account ? parseAccount(account) : void 0;
+    const params = chainId ? [account_?.address, [numberToHex(chainId)]] : [account_?.address];
+    const capabilities_raw = await client.request({
+      method: "wallet_getCapabilities",
+      params
+    });
+    const capabilities = {};
+    for (const [chainId2, capabilities_] of Object.entries(capabilities_raw)) {
+      capabilities[Number(chainId2)] = {};
+      for (let [key, value] of Object.entries(capabilities_)) {
+        if (key === "addSubAccount")
+          key = "unstable_addSubAccount";
+        capabilities[Number(chainId2)][key] = value;
+      }
+    }
+    return typeof chainId === "number" ? capabilities[chainId] : capabilities;
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/wallet/getPermissions.js
+  async function getPermissions(client) {
+    const permissions = await client.request({ method: "wallet_getPermissions" }, { dedupe: true });
+    return permissions;
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/wallet/prepareAuthorization.js
+  init_parseAccount();
+  init_isAddressEqual();
+  async function prepareAuthorization(client, parameters) {
+    const { account: account_ = client.account, chainId, nonce: nonce2 } = parameters;
+    if (!account_)
+      throw new AccountNotFoundError({
+        docsPath: "/docs/eip7702/prepareAuthorization"
+      });
+    const account = parseAccount(account_);
+    const executor = (() => {
+      if (!parameters.executor)
+        return void 0;
+      if (parameters.executor === "self")
+        return parameters.executor;
+      return parseAccount(parameters.executor);
+    })();
+    const authorization = {
+      address: parameters.contractAddress ?? parameters.address,
+      chainId,
+      nonce: nonce2
+    };
+    if (typeof authorization.chainId === "undefined")
+      authorization.chainId = client.chain?.id ?? await getAction(client, getChainId, "getChainId")({});
+    if (typeof authorization.nonce === "undefined") {
+      authorization.nonce = await getAction(client, getTransactionCount, "getTransactionCount")({
+        address: account.address,
+        blockTag: "pending"
+      });
+      if (executor === "self" || executor?.address && isAddressEqual(executor.address, account.address))
+        authorization.nonce += 1;
+    }
+    return authorization;
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/wallet/requestAddresses.js
+  init_getAddress();
+  async function requestAddresses(client) {
+    const addresses = await client.request({ method: "eth_requestAccounts" }, { dedupe: true, retryCount: 0 });
+    return addresses.map((address) => getAddress(address));
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/wallet/requestPermissions.js
+  async function requestPermissions(client, permissions) {
+    return client.request({
+      method: "wallet_requestPermissions",
+      params: [permissions]
+    }, { retryCount: 0 });
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/wallet/waitForCallsStatus.js
+  init_base();
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/errors/calls.js
+  init_base();
+  var BundleFailedError = class extends BaseError {
+    constructor(result) {
+      super(`Call bundle failed with status: ${result.statusCode}`, {
+        name: "BundleFailedError"
+      });
+      Object.defineProperty(this, "result", {
+        enumerable: true,
+        configurable: true,
+        writable: true,
+        value: void 0
+      });
+      this.result = result;
+    }
+  };
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/wallet/waitForCallsStatus.js
+  init_withResolvers();
+  init_stringify();
+  async function waitForCallsStatus(client, parameters) {
+    const {
+      id,
+      pollingInterval = client.pollingInterval,
+      status = ({ statusCode }) => statusCode === 200 || statusCode >= 300,
+      retryCount = 4,
+      retryDelay = ({ count }) => ~~(1 << count) * 200,
+      // exponential backoff
+      timeout = 6e4,
+      throwOnFailure = false
+    } = parameters;
+    const observerId = stringify(["waitForCallsStatus", client.uid, id]);
+    const { promise, resolve, reject } = withResolvers();
+    let timer;
+    const unobserve = observe(observerId, { resolve, reject }, (emit) => {
+      const unpoll = poll(async () => {
+        const done = (fn) => {
+          clearTimeout(timer);
+          unpoll();
+          fn();
+          unobserve();
+        };
+        try {
+          const result = await withRetry(async () => {
+            const result2 = await getAction(client, getCallsStatus, "getCallsStatus")({ id });
+            if (throwOnFailure && result2.status === "failure")
+              throw new BundleFailedError(result2);
+            return result2;
+          }, {
+            retryCount,
+            delay: retryDelay
+          });
+          if (!status(result))
+            return;
+          done(() => emit.resolve(result));
+        } catch (error) {
+          done(() => emit.reject(error));
+        }
+      }, {
+        interval: pollingInterval,
+        emitOnBegin: true
+      });
+      return unpoll;
+    });
+    timer = timeout ? setTimeout(() => {
+      unobserve();
+      clearTimeout(timer);
+      reject(new WaitForCallsStatusTimeoutError({ id }));
+    }, timeout) : void 0;
+    return await promise;
+  }
+  var WaitForCallsStatusTimeoutError = class extends BaseError {
+    constructor({ id }) {
+      super(`Timed out while waiting for call bundle with id "${id}" to be confirmed.`, { name: "WaitForCallsStatusTimeoutError" });
+    }
+  };
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/wallet/sendCallsSync.js
+  async function sendCallsSync(client, parameters) {
+    const { chain = client.chain } = parameters;
+    const timeout = parameters.timeout ?? Math.max((chain?.blockTime ?? 0) * 3, 5e3);
+    const result = await sendCalls(client, parameters);
+    const status = await waitForCallsStatus(client, {
+      ...parameters,
+      id: result.id,
+      timeout
+    });
+    return status;
   }
 
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/wallet/sendRawTransactionSync.js
@@ -36010,7 +39729,7 @@ ${prettyStateOverride(stateOverride)}`;
         }, "sendTransaction");
         const isWalletNamespaceSupported = supportsWalletNamespace2.get(client.uid);
         const method = isWalletNamespaceSupported ? "wallet_sendTransaction" : "eth_sendTransaction";
-        const hash4 = await (async () => {
+        const hash5 = await (async () => {
           try {
             return await client.request({
               method,
@@ -36024,9 +39743,9 @@ ${prettyStateOverride(stateOverride)}`;
               return await client.request({
                 method: "wallet_sendTransaction",
                 params: [request]
-              }, { retryCount: 0 }).then((hash5) => {
+              }, { retryCount: 0 }).then((hash6) => {
                 supportsWalletNamespace2.set(client.uid, true);
-                return hash5;
+                return hash6;
               }).catch((e2) => {
                 const walletNamespaceError = e2;
                 if (walletNamespaceError.name === "MethodNotFoundRpcError" || walletNamespaceError.name === "MethodNotSupportedRpcError") {
@@ -36041,7 +39760,7 @@ ${prettyStateOverride(stateOverride)}`;
         })();
         const receipt = await getAction(client, waitForTransactionReceipt, "waitForTransactionReceipt")({
           checkReplacement: false,
-          hash: hash4,
+          hash: hash5,
           pollingInterval,
           timeout
         });
@@ -36102,6 +39821,150 @@ ${prettyStateOverride(stateOverride)}`;
     }
   }
 
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/wallet/showCallsStatus.js
+  async function showCallsStatus(client, parameters) {
+    const { id } = parameters;
+    await client.request({
+      method: "wallet_showCallsStatus",
+      params: [id]
+    });
+    return;
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/wallet/signAuthorization.js
+  init_parseAccount();
+  async function signAuthorization(client, parameters) {
+    const { account: account_ = client.account } = parameters;
+    if (!account_)
+      throw new AccountNotFoundError({
+        docsPath: "/docs/eip7702/signAuthorization"
+      });
+    const account = parseAccount(account_);
+    if (!account.signAuthorization)
+      throw new AccountTypeNotSupportedError({
+        docsPath: "/docs/eip7702/signAuthorization",
+        metaMessages: [
+          "The `signAuthorization` Action does not support JSON-RPC Accounts."
+        ],
+        type: account.type
+      });
+    const authorization = await prepareAuthorization(client, parameters);
+    return account.signAuthorization(authorization);
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/wallet/signMessage.js
+  init_parseAccount();
+  init_toHex();
+  async function signMessage(client, { account: account_ = client.account, message }) {
+    if (!account_)
+      throw new AccountNotFoundError({
+        docsPath: "/docs/actions/wallet/signMessage"
+      });
+    const account = parseAccount(account_);
+    if (account.signMessage)
+      return account.signMessage({ message });
+    const message_ = (() => {
+      if (typeof message === "string")
+        return stringToHex(message);
+      if (message.raw instanceof Uint8Array)
+        return toHex(message.raw);
+      return message.raw;
+    })();
+    return client.request({
+      method: "personal_sign",
+      params: [message_, account.address]
+    }, { retryCount: 0 });
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/wallet/signTransaction.js
+  init_parseAccount();
+  init_toHex();
+  init_transactionRequest();
+  init_assertRequest();
+  async function signTransaction(client, parameters) {
+    const { account: account_ = client.account, chain = client.chain, ...transaction } = parameters;
+    if (!account_)
+      throw new AccountNotFoundError({
+        docsPath: "/docs/actions/wallet/signTransaction"
+      });
+    const account = parseAccount(account_);
+    assertRequest({
+      account,
+      ...parameters
+    });
+    const chainId = await getAction(client, getChainId, "getChainId")({});
+    if (chain !== null)
+      assertCurrentChain({
+        currentChainId: chainId,
+        chain
+      });
+    const formatters = chain?.formatters || client.chain?.formatters;
+    const format2 = formatters?.transactionRequest?.format || formatTransactionRequest;
+    if (account.signTransaction)
+      return account.signTransaction({
+        ...transaction,
+        chainId
+      }, { serializer: client.chain?.serializers?.transaction });
+    return await client.request({
+      method: "eth_signTransaction",
+      params: [
+        {
+          ...format2({
+            ...transaction,
+            account
+          }, "signTransaction"),
+          chainId: numberToHex(chainId),
+          from: account.address
+        }
+      ]
+    }, { retryCount: 0 });
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/wallet/signTypedData.js
+  init_parseAccount();
+  async function signTypedData(client, parameters) {
+    const { account: account_ = client.account, domain, message, primaryType } = parameters;
+    if (!account_)
+      throw new AccountNotFoundError({
+        docsPath: "/docs/actions/wallet/signTypedData"
+      });
+    const account = parseAccount(account_);
+    const types2 = {
+      EIP712Domain: getTypesForEIP712Domain({ domain }),
+      ...parameters.types
+    };
+    validateTypedData({ domain, message, primaryType, types: types2 });
+    if (account.signTypedData)
+      return account.signTypedData({ domain, message, primaryType, types: types2 });
+    const typedData = serializeTypedData({ domain, message, primaryType, types: types2 });
+    return client.request({
+      method: "eth_signTypedData_v4",
+      params: [account.address, typedData]
+    }, { retryCount: 0 });
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/wallet/switchChain.js
+  init_toHex();
+  async function switchChain(client, { id }) {
+    await client.request({
+      method: "wallet_switchEthereumChain",
+      params: [
+        {
+          chainId: numberToHex(id)
+        }
+      ]
+    }, { retryCount: 0 });
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/wallet/watchAsset.js
+  async function watchAsset(client, params) {
+    const added = await client.request({
+      method: "wallet_watchAsset",
+      params
+    }, { retryCount: 0 });
+    return added;
+  }
+
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/wallet/writeContract.js
   init_parseAccount();
   init_encodeFunctionData();
@@ -36110,14 +39973,14 @@ ${prettyStateOverride(stateOverride)}`;
   }
   (function(writeContract2) {
     async function internal(client, actionFn, name, parameters) {
-      const { abi, account: account_ = client.account, address, args, dataSuffix, functionName, ...request } = parameters;
+      const { abi: abi2, account: account_ = client.account, address, args, dataSuffix, functionName, ...request } = parameters;
       if (typeof account_ === "undefined")
         throw new AccountNotFoundError({
           docsPath: "/docs/contract/writeContract"
         });
       const account = account_ ? parseAccount(account_) : null;
       const data = encodeFunctionData({
-        abi,
+        abi: abi2,
         args,
         functionName
       });
@@ -36130,7 +39993,7 @@ ${prettyStateOverride(stateOverride)}`;
         });
       } catch (error) {
         throw getContractError(error, {
-          abi,
+          abi: abi2,
           address,
           args,
           docsPath: "/docs/contract/writeContract",
@@ -36426,6 +40289,180 @@ ${prettyStateOverride(stateOverride)}`;
     return Object.assign(client, { extend: extend(client) });
   }
 
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/clients/decorators/public.js
+  init_call();
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/siwe/parseSiweMessage.js
+  function parseSiweMessage(message) {
+    const { scheme, statement, ...prefix } = message.match(prefixRegex)?.groups ?? {};
+    const { chainId, expirationTime, issuedAt, notBefore, requestId, ...suffix } = message.match(suffixRegex)?.groups ?? {};
+    const resources = message.split("Resources:")[1]?.split("\n- ").slice(1);
+    return {
+      ...prefix,
+      ...suffix,
+      ...chainId ? { chainId: Number(chainId) } : {},
+      ...expirationTime ? { expirationTime: new Date(expirationTime) } : {},
+      ...issuedAt ? { issuedAt: new Date(issuedAt) } : {},
+      ...notBefore ? { notBefore: new Date(notBefore) } : {},
+      ...requestId ? { requestId } : {},
+      ...resources ? { resources } : {},
+      ...scheme ? { scheme } : {},
+      ...statement ? { statement } : {}
+    };
+  }
+  var prefixRegex = /^(?:(?<scheme>[a-zA-Z][a-zA-Z0-9+-.]*):\/\/)?(?<domain>[a-zA-Z0-9+-.]*(?::[0-9]{1,5})?) (?:wants you to sign in with your Ethereum account:\n)(?<address>0x[a-fA-F0-9]{40})\n\n(?:(?<statement>.*)\n\n)?/;
+  var suffixRegex = /(?:URI: (?<uri>.+))\n(?:Version: (?<version>.+))\n(?:Chain ID: (?<chainId>\d+))\n(?:Nonce: (?<nonce>[a-zA-Z0-9]+))\n(?:Issued At: (?<issuedAt>.+))(?:\nExpiration Time: (?<expirationTime>.+))?(?:\nNot Before: (?<notBefore>.+))?(?:\nRequest ID: (?<requestId>.+))?/;
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/utils/siwe/validateSiweMessage.js
+  init_isAddress();
+  init_isAddressEqual();
+  function validateSiweMessage(parameters) {
+    const { address, domain, message, nonce: nonce2, scheme, time = /* @__PURE__ */ new Date() } = parameters;
+    if (domain && message.domain !== domain)
+      return false;
+    if (nonce2 && message.nonce !== nonce2)
+      return false;
+    if (scheme && message.scheme !== scheme)
+      return false;
+    if (message.expirationTime && time >= message.expirationTime)
+      return false;
+    if (message.notBefore && time < message.notBefore)
+      return false;
+    try {
+      if (!message.address)
+        return false;
+      if (!isAddress(message.address, { strict: false }))
+        return false;
+      if (address && !isAddressEqual(message.address, address))
+        return false;
+    } catch {
+      return false;
+    }
+    return true;
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/actions/siwe/verifySiweMessage.js
+  async function verifySiweMessage(client, parameters) {
+    const { address, domain, message, nonce: nonce2, scheme, signature, time = /* @__PURE__ */ new Date(), ...callRequest } = parameters;
+    const parsed = parseSiweMessage(message);
+    if (!parsed.address)
+      return false;
+    const isValid = validateSiweMessage({
+      address,
+      domain,
+      message: parsed,
+      nonce: nonce2,
+      scheme,
+      time
+    });
+    if (!isValid)
+      return false;
+    const hash5 = hashMessage(message);
+    return verifyHash(client, {
+      address: parsed.address,
+      hash: hash5,
+      signature,
+      ...callRequest
+    });
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/clients/decorators/public.js
+  function publicActions(client) {
+    return {
+      call: (args) => call(client, args),
+      createAccessList: (args) => createAccessList(client, args),
+      createBlockFilter: () => createBlockFilter(client),
+      createContractEventFilter: (args) => createContractEventFilter(client, args),
+      createEventFilter: (args) => createEventFilter(client, args),
+      createPendingTransactionFilter: () => createPendingTransactionFilter(client),
+      estimateContractGas: (args) => estimateContractGas(client, args),
+      estimateGas: (args) => estimateGas(client, args),
+      getBalance: (args) => getBalance(client, args),
+      getBlobBaseFee: () => getBlobBaseFee(client),
+      getBlock: (args) => getBlock(client, args),
+      getBlockNumber: (args) => getBlockNumber(client, args),
+      getBlockTransactionCount: (args) => getBlockTransactionCount(client, args),
+      getBytecode: (args) => getCode(client, args),
+      getChainId: () => getChainId(client),
+      getCode: (args) => getCode(client, args),
+      getContractEvents: (args) => getContractEvents(client, args),
+      getEip712Domain: (args) => getEip712Domain(client, args),
+      getEnsAddress: (args) => getEnsAddress(client, args),
+      getEnsAvatar: (args) => getEnsAvatar(client, args),
+      getEnsName: (args) => getEnsName(client, args),
+      getEnsResolver: (args) => getEnsResolver(client, args),
+      getEnsText: (args) => getEnsText(client, args),
+      getFeeHistory: (args) => getFeeHistory(client, args),
+      estimateFeesPerGas: (args) => estimateFeesPerGas(client, args),
+      getFilterChanges: (args) => getFilterChanges(client, args),
+      getFilterLogs: (args) => getFilterLogs(client, args),
+      getGasPrice: () => getGasPrice(client),
+      getLogs: (args) => getLogs(client, args),
+      getProof: (args) => getProof(client, args),
+      estimateMaxPriorityFeePerGas: (args) => estimateMaxPriorityFeePerGas(client, args),
+      fillTransaction: (args) => fillTransaction(client, args),
+      getStorageAt: (args) => getStorageAt(client, args),
+      getTransaction: (args) => getTransaction(client, args),
+      getTransactionConfirmations: (args) => getTransactionConfirmations(client, args),
+      getTransactionCount: (args) => getTransactionCount(client, args),
+      getTransactionReceipt: (args) => getTransactionReceipt(client, args),
+      multicall: (args) => multicall(client, args),
+      prepareTransactionRequest: (args) => prepareTransactionRequest(client, args),
+      readContract: (args) => readContract(client, args),
+      sendRawTransaction: (args) => sendRawTransaction(client, args),
+      sendRawTransactionSync: (args) => sendRawTransactionSync(client, args),
+      simulate: (args) => simulateBlocks(client, args),
+      simulateBlocks: (args) => simulateBlocks(client, args),
+      simulateCalls: (args) => simulateCalls(client, args),
+      simulateContract: (args) => simulateContract(client, args),
+      verifyHash: (args) => verifyHash(client, args),
+      verifyMessage: (args) => verifyMessage(client, args),
+      verifySiweMessage: (args) => verifySiweMessage(client, args),
+      verifyTypedData: (args) => verifyTypedData(client, args),
+      uninstallFilter: (args) => uninstallFilter(client, args),
+      waitForTransactionReceipt: (args) => waitForTransactionReceipt(client, args),
+      watchBlocks: (args) => watchBlocks(client, args),
+      watchBlockNumber: (args) => watchBlockNumber(client, args),
+      watchContractEvent: (args) => watchContractEvent(client, args),
+      watchEvent: (args) => watchEvent(client, args),
+      watchPendingTransactions: (args) => watchPendingTransactions(client, args)
+    };
+  }
+
+  // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/clients/decorators/wallet.js
+  function walletActions(client) {
+    return {
+      addChain: (args) => addChain(client, args),
+      deployContract: (args) => deployContract(client, args),
+      fillTransaction: (args) => fillTransaction(client, args),
+      getAddresses: () => getAddresses(client),
+      getCallsStatus: (args) => getCallsStatus(client, args),
+      getCapabilities: (args) => getCapabilities(client, args),
+      getChainId: () => getChainId(client),
+      getPermissions: () => getPermissions(client),
+      prepareAuthorization: (args) => prepareAuthorization(client, args),
+      prepareTransactionRequest: (args) => prepareTransactionRequest(client, args),
+      requestAddresses: () => requestAddresses(client),
+      requestPermissions: (args) => requestPermissions(client, args),
+      sendCalls: (args) => sendCalls(client, args),
+      sendCallsSync: (args) => sendCallsSync(client, args),
+      sendRawTransaction: (args) => sendRawTransaction(client, args),
+      sendRawTransactionSync: (args) => sendRawTransactionSync(client, args),
+      sendTransaction: (args) => sendTransaction(client, args),
+      sendTransactionSync: (args) => sendTransactionSync(client, args),
+      showCallsStatus: (args) => showCallsStatus(client, args),
+      signAuthorization: (args) => signAuthorization(client, args),
+      signMessage: (args) => signMessage(client, args),
+      signTransaction: (args) => signTransaction(client, args),
+      signTypedData: (args) => signTypedData(client, args),
+      switchChain: (args) => switchChain(client, args),
+      waitForCallsStatus: (args) => waitForCallsStatus(client, args),
+      watchAsset: (args) => watchAsset(client, args),
+      writeContract: (args) => writeContract(client, args),
+      writeContractSync: (args) => writeContractSync(client, args)
+    };
+  }
+
   // node_modules/.pnpm/viem@2.43.2_typescript@5.9.3/node_modules/viem/_esm/clients/transports/createTransport.js
   function createTransport({ key, methods, name, request, retryCount = 3, retryDelay = 150, timeout, type: type2 }, value) {
     const uid3 = uid();
@@ -36686,6 +40723,15 @@ ${prettyStateOverride(stateOverride)}`;
     return a !== a && b !== b;
   }
 
+  // node_modules/.pnpm/@wagmi+core@3.0.0_@tanstack+query-core@5.90.12_@types+react@19.2.7_react@19.2.3_typescr_abcb4ff64c4186c3420513f437736e1f/node_modules/@wagmi/core/dist/esm/actions/getClient.js
+  function getClient(config2, parameters = {}) {
+    try {
+      return config2.getClient(parameters);
+    } catch {
+      return void 0;
+    }
+  }
+
   // node_modules/.pnpm/@wagmi+core@3.0.0_@tanstack+query-core@5.90.12_@types+react@19.2.7_react@19.2.3_typescr_abcb4ff64c4186c3420513f437736e1f/node_modules/@wagmi/core/dist/esm/actions/getConnection.js
   function getConnection(config2) {
     const uid3 = config2.state.current;
@@ -36770,6 +40816,18 @@ ${prettyStateOverride(stateOverride)}`;
       return previousConnectors;
     previousConnectors = connectors;
     return connectors;
+  }
+
+  // node_modules/.pnpm/@wagmi+core@3.0.0_@tanstack+query-core@5.90.12_@types+react@19.2.7_react@19.2.3_typescr_abcb4ff64c4186c3420513f437736e1f/node_modules/@wagmi/core/dist/esm/actions/getPublicClient.js
+  function getPublicClient(config2, parameters = {}) {
+    const client = getClient(config2, parameters);
+    return client?.extend(publicActions);
+  }
+
+  // node_modules/.pnpm/@wagmi+core@3.0.0_@tanstack+query-core@5.90.12_@types+react@19.2.7_react@19.2.3_typescr_abcb4ff64c4186c3420513f437736e1f/node_modules/@wagmi/core/dist/esm/actions/getWalletClient.js
+  async function getWalletClient(config2, parameters = {}) {
+    const client = await getConnectorClient(config2, parameters);
+    return client.extend(walletActions);
   }
 
   // node_modules/.pnpm/@wagmi+core@3.0.0_@tanstack+query-core@5.90.12_@types+react@19.2.7_react@19.2.3_typescr_abcb4ff64c4186c3420513f437736e1f/node_modules/@wagmi/core/dist/esm/actions/multicall.js
@@ -36993,6 +41051,16 @@ ${prettyStateOverride(stateOverride)}`;
     const { onChange } = parameters;
     return config2._internal.connectors.subscribe((connectors, prevConnectors) => {
       onChange(Object.values(connectors), prevConnectors);
+    });
+  }
+
+  // node_modules/.pnpm/@wagmi+core@3.0.0_@tanstack+query-core@5.90.12_@types+react@19.2.7_react@19.2.3_typescr_abcb4ff64c4186c3420513f437736e1f/node_modules/@wagmi/core/dist/esm/actions/watchPublicClient.js
+  function watchPublicClient(config2, parameters) {
+    const { onChange } = parameters;
+    return config2.subscribe(() => getPublicClient(config2), onChange, {
+      equalityFn(a, b) {
+        return a?.uid === b?.uid;
+      }
     });
   }
 
@@ -37856,7 +41924,7 @@ ${prettyStateOverride(stateOverride)}`;
   // node_modules/.pnpm/@wagmi+core@3.0.0_@tanstack+query-core@5.90.12_@types+react@19.2.7_react@19.2.3_typescr_abcb4ff64c4186c3420513f437736e1f/node_modules/@wagmi/core/dist/esm/createStorage.js
   function createStorage(parameters) {
     const { deserialize: deserialize4 = deserialize, key: prefix = "wagmi", serialize: serialize6 = serialize, storage = noopStorage } = parameters;
-    function unwrap(value) {
+    function unwrap3(value) {
       if (value instanceof Promise)
         return value.then((x) => x).catch(() => null);
       return value;
@@ -37866,7 +41934,7 @@ ${prettyStateOverride(stateOverride)}`;
       key: prefix,
       async getItem(key, defaultValue) {
         const value = storage.getItem(`${prefix}.${key}`);
-        const unwrapped = await unwrap(value);
+        const unwrapped = await unwrap3(value);
         if (unwrapped)
           return deserialize4(unwrapped) ?? null;
         return defaultValue ?? null;
@@ -37874,12 +41942,12 @@ ${prettyStateOverride(stateOverride)}`;
       async setItem(key, value) {
         const storageKey = `${prefix}.${key}`;
         if (value === null)
-          await unwrap(storage.removeItem(storageKey));
+          await unwrap3(storage.removeItem(storageKey));
         else
-          await unwrap(storage.setItem(storageKey, serialize6(value)));
+          await unwrap3(storage.setItem(storageKey, serialize6(value)));
       },
       async removeItem(key) {
-        await unwrap(storage.removeItem(`${prefix}.${key}`));
+        await unwrap3(storage.removeItem(`${prefix}.${key}`));
       }
     };
   }
@@ -37979,7 +42047,7 @@ ${prettyStateOverride(stateOverride)}`;
       return injected({ target: { ...info, id: info.rdns, provider } });
     }
     const clients = /* @__PURE__ */ new Map();
-    function getClient(config2 = {}) {
+    function getClient2(config2 = {}) {
       const chainId = config2.chainId ?? store2.getState().chainId;
       const chain = chains.getState().find((x) => x.id === chainId);
       if (config2.chainId && !chain)
@@ -38198,7 +42266,7 @@ ${prettyStateOverride(stateOverride)}`;
         return connectors.getState();
       },
       storage,
-      getClient,
+      getClient: getClient2,
       get state() {
         return store2.getState();
       },
@@ -41031,14 +45099,34 @@ ${prettyStateOverride(stateOverride)}`;
     };
   }
 
+  // node_modules/.pnpm/@wagmi+core@3.0.0_@tanstack+query-core@5.90.12_@types+react@19.2.7_react@19.2.3_typescr_abcb4ff64c4186c3420513f437736e1f/node_modules/@wagmi/core/dist/esm/query/getWalletClient.js
+  function getWalletClientQueryOptions(config2, options = {}) {
+    return {
+      gcTime: 0,
+      async queryFn({ queryKey }) {
+        const { connector } = options;
+        const { connectorUid: _, scopeKey: _s, ...parameters } = queryKey[1];
+        return getWalletClient(config2, { ...parameters, connector });
+      },
+      queryKey: getWalletClientQueryKey(options)
+    };
+  }
+  function getWalletClientQueryKey(options = {}) {
+    const { connector, ...parameters } = options;
+    return [
+      "walletClient",
+      { ...filterQueryOptions(parameters), connectorUid: connector?.uid }
+    ];
+  }
+
   // node_modules/.pnpm/@wagmi+core@3.0.0_@tanstack+query-core@5.90.12_@types+react@19.2.7_react@19.2.3_typescr_abcb4ff64c4186c3420513f437736e1f/node_modules/@wagmi/core/dist/esm/query/readContract.js
   function readContractQueryOptions(config2, options = {}) {
     return {
       // TODO: Support `signal` once Viem actions allow passthrough
       // https://tkdodo.eu/blog/why-you-want-react-query#bonus-cancellation
       async queryFn({ queryKey }) {
-        const abi = options.abi;
-        if (!abi)
+        const abi2 = options.abi;
+        if (!abi2)
           throw new Error("abi is required");
         const { functionName, scopeKey: _, ...parameters } = queryKey[1];
         const addressOrCodeParams = (() => {
@@ -41052,7 +45140,7 @@ ${prettyStateOverride(stateOverride)}`;
         if (!functionName)
           throw new Error("functionName is required");
         return readContract2(config2, {
-          abi,
+          abi: abi2,
           functionName,
           args: parameters.args,
           ...addressOrCodeParams,
@@ -41075,8 +45163,8 @@ ${prettyStateOverride(stateOverride)}`;
         const length = queryKey[1].contracts.length;
         for (let i = 0; i < length; i++) {
           const contract = queryKey[1].contracts[i];
-          const abi = (options.contracts?.[i]).abi;
-          contracts.push({ ...contract, abi });
+          const abi2 = (options.contracts?.[i]).abi;
+          contracts.push({ ...contract, abi: abi2 });
         }
         const { scopeKey: _, ...parameters } = queryKey[1];
         return readContracts(config2, {
@@ -41103,13 +45191,13 @@ ${prettyStateOverride(stateOverride)}`;
   function waitForTransactionReceiptQueryOptions(config2, options = {}) {
     return {
       async queryFn({ queryKey }) {
-        const { hash: hash4, ...parameters } = queryKey[1];
-        if (!hash4)
+        const { hash: hash5, ...parameters } = queryKey[1];
+        if (!hash5)
           throw new Error("hash is required");
         return waitForTransactionReceipt2(config2, {
           ...parameters,
           onReplaced: options.onReplaced,
-          hash: hash4
+          hash: hash5
         });
       },
       queryKey: waitForTransactionReceiptQueryKey(options)
@@ -41472,14 +45560,21 @@ ${prettyStateOverride(stateOverride)}`;
     };
   }
 
+  // node_modules/.pnpm/wagmi@3.1.0_@tanstack+query-core@5.90.12_@tanstack+react-query@5.90.12_react@19.2.3__@t_665a25229946796fa1aedad50b0b4413/node_modules/wagmi/dist/esm/hooks/usePublicClient.js
+  var import_with_selector2 = __toESM(require_with_selector(), 1);
+  function usePublicClient(parameters = {}) {
+    const config2 = useConfig(parameters);
+    return (0, import_with_selector2.useSyncExternalStoreWithSelector)((onChange) => watchPublicClient(config2, { onChange }), () => getPublicClient(config2, parameters), () => getPublicClient(config2, parameters), (x) => x, (a, b) => a?.uid === b?.uid);
+  }
+
   // node_modules/.pnpm/wagmi@3.1.0_@tanstack+query-core@5.90.12_@tanstack+react-query@5.90.12_react@19.2.3__@t_665a25229946796fa1aedad50b0b4413/node_modules/wagmi/dist/esm/hooks/useReadContract.js
   function useReadContract(parameters = {}) {
-    const { abi, address, functionName, query = {} } = parameters;
+    const { abi: abi2, address, functionName, query = {} } = parameters;
     const code = parameters.code;
     const config2 = useConfig(parameters);
     const chainId = useChainId({ config: config2 });
     const options = readContractQueryOptions(config2, { ...parameters, chainId: parameters.chainId ?? chainId });
-    const enabled = Boolean((address || code) && abi && functionName && (query.enabled ?? true));
+    const enabled = Boolean((address || code) && abi2 && functionName && (query.enabled ?? true));
     return useQuery2({
       ...query,
       ...options,
@@ -41504,8 +45599,8 @@ ${prettyStateOverride(stateOverride)}`;
     const enabled = (0, import_react9.useMemo)(() => {
       let isContractsValid = false;
       for (const contract of contracts) {
-        const { abi, address, functionName } = contract;
-        if (!abi || !address || !functionName) {
+        const { abi: abi2, address, functionName } = contract;
+        if (!abi2 || !address || !functionName) {
           isContractsValid = false;
           break;
         }
@@ -41523,18 +45618,53 @@ ${prettyStateOverride(stateOverride)}`;
 
   // node_modules/.pnpm/wagmi@3.1.0_@tanstack+query-core@5.90.12_@tanstack+react-query@5.90.12_react@19.2.3__@t_665a25229946796fa1aedad50b0b4413/node_modules/wagmi/dist/esm/hooks/useWaitForTransactionReceipt.js
   function useWaitForTransactionReceipt(parameters = {}) {
-    const { hash: hash4, query = {} } = parameters;
+    const { hash: hash5, query = {} } = parameters;
     const config2 = useConfig(parameters);
     const chainId = useChainId({ config: config2 });
     const options = waitForTransactionReceiptQueryOptions(config2, {
       ...parameters,
       chainId: parameters.chainId ?? chainId
     });
-    const enabled = Boolean(hash4 && (query.enabled ?? true));
+    const enabled = Boolean(hash5 && (query.enabled ?? true));
     return useQuery2({
       ...query,
       ...options,
       enabled
+    });
+  }
+
+  // node_modules/.pnpm/wagmi@3.1.0_@tanstack+query-core@5.90.12_@tanstack+react-query@5.90.12_react@19.2.3__@t_665a25229946796fa1aedad50b0b4413/node_modules/wagmi/dist/esm/hooks/useWalletClient.js
+  var import_react10 = __toESM(require_react(), 1);
+  function useWalletClient(parameters = {}) {
+    const { query = {}, ...rest } = parameters;
+    const config2 = useConfig(rest);
+    const queryClient = useQueryClient();
+    const { address, connector, status } = useConnection({ config: config2 });
+    const chainId = useChainId({ config: config2 });
+    const activeConnector = parameters.connector ?? connector;
+    const { queryKey, ...options } = getWalletClientQueryOptions(config2, {
+      ...parameters,
+      chainId: parameters.chainId ?? chainId,
+      connector: parameters.connector ?? connector
+    });
+    const enabled = Boolean((status === "connected" || status === "reconnecting" && activeConnector?.getProvider) && (query.enabled ?? true));
+    const addressRef = (0, import_react10.useRef)(address);
+    (0, import_react10.useEffect)(() => {
+      const previousAddress = addressRef.current;
+      if (!address && previousAddress) {
+        queryClient.removeQueries({ queryKey });
+        addressRef.current = void 0;
+      } else if (address !== previousAddress) {
+        queryClient.invalidateQueries({ queryKey });
+        addressRef.current = address;
+      }
+    }, [address, queryClient]);
+    return useQuery2({
+      ...query,
+      ...options,
+      queryKey,
+      enabled,
+      staleTime: Number.POSITIVE_INFINITY
     });
   }
 
@@ -41550,17 +45680,17 @@ ${prettyStateOverride(stateOverride)}`;
     CoercionError: () => CoercionError,
     InvalidSerializedError: () => InvalidSerializedError,
     MissingPropertiesError: () => MissingPropertiesError2,
-    VerificationError: () => VerificationError,
-    assert: () => assert6,
+    VerificationError: () => VerificationError2,
+    assert: () => assert8,
     deserialize: () => deserialize2,
-    from: () => from7,
+    from: () => from14,
     fromRpc: () => fromRpc4,
     getType: () => getType,
-    magicBytes: () => magicBytes,
+    magicBytes: () => magicBytes3,
     serialize: () => serialize2,
     toRpc: () => toRpc5,
     types: () => types,
-    validate: () => validate5,
+    validate: () => validate7,
     verify: () => verify4
   });
   init_Errors();
@@ -41620,8 +45750,8 @@ ${prettyStateOverride(stateOverride)}`;
   // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/P256.js
   init_Bytes();
   function verify2(options) {
-    const { hash: hash4, payload, publicKey, signature } = options;
-    return secp256r1.verify(signature, payload instanceof Uint8Array ? payload : fromHex(payload), toHex2(publicKey).substring(2), ...hash4 ? [{ prehash: true, lowS: true }] : []);
+    const { hash: hash5, payload, publicKey, signature } = options;
+    return secp256r1.verify(signature, payload instanceof Uint8Array ? payload : fromHex(payload), toHex2(publicKey).substring(2), ...hash5 ? [{ prehash: true, lowS: true }] : []);
   }
 
   // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/Base64.js
@@ -41831,7 +45961,7 @@ ${prettyStateOverride(stateOverride)}`;
     }
   }
   function verify3(options) {
-    const { challenge: challenge2, hash: hash4 = true, metadata, publicKey, signature } = options;
+    const { challenge: challenge2, hash: hash5 = true, metadata, publicKey, signature } = options;
     const { authenticatorData, challengeIndex, clientDataJSON, typeIndex, userVerificationRequired } = metadata;
     const authenticatorDataBytes = fromHex(authenticatorData);
     if (authenticatorDataBytes.length < 37)
@@ -41859,7 +45989,7 @@ ${prettyStateOverride(stateOverride)}`;
     });
     const payload = concat2(authenticatorDataBytes, clientDataJSONHash);
     return verify2({
-      hash: hash4,
+      hash: hash5,
       payload,
       publicKey,
       signature
@@ -41896,9 +46026,9 @@ ${prettyStateOverride(stateOverride)}`;
   var serializedP256Type = "0x01";
   var serializedWebAuthnType = "0x02";
   var serializedKeychainType = "0x03";
-  var magicBytes = "0x7777777777777777777777777777777777777777777777777777777777777777";
+  var magicBytes3 = "0x7777777777777777777777777777777777777777777777777777777777777777";
   var types = ["secp256k1", "p256", "webAuthn"];
-  function assert6(envelope) {
+  function assert8(envelope) {
     const type2 = getType(envelope);
     if (type2 === "secp256k1") {
       const secp256k12 = envelope;
@@ -41955,12 +46085,12 @@ ${prettyStateOverride(stateOverride)}`;
     }
     if (type2 === "keychain") {
       const keychain = envelope;
-      assert6(keychain.inner);
+      assert8(keychain.inner);
       return;
     }
   }
   function deserialize2(value) {
-    const serialized = value.endsWith(magicBytes.slice(2)) ? slice3(value, 0, -size3(magicBytes)) : value;
+    const serialized = value.endsWith(magicBytes3.slice(2)) ? slice3(value, 0, -size3(magicBytes3)) : value;
     const size6 = size3(serialized);
     if (size6 === 65) {
       const signature = fromHex4(serialized);
@@ -42001,7 +46131,7 @@ ${prettyStateOverride(stateOverride)}`;
       let authenticatorData;
       let clientDataJSON;
       for (let split2 = 37; split2 < webauthnDataSize; split2++) {
-        const potentialJson = toString(slice3(webauthnData, split2));
+        const potentialJson = toString2(slice3(webauthnData, split2));
         if (potentialJson.startsWith("{") && potentialJson.endsWith("}")) {
           try {
             JSON.parse(potentialJson);
@@ -42048,7 +46178,7 @@ ${prettyStateOverride(stateOverride)}`;
       serialized
     });
   }
-  function from7(value) {
+  function from14(value) {
     if (typeof value === "string")
       return deserialize2(value);
     if (typeof value === "object" && value !== null && "r" in value && "s" in value && "yParity" in value)
@@ -42087,7 +46217,7 @@ ${prettyStateOverride(stateOverride)}`;
       let authenticatorData;
       let clientDataJSON;
       for (let split2 = 37; split2 < webauthnDataSize; split2++) {
-        const potentialJson = toString(slice3(webauthnData, split2));
+        const potentialJson = toString2(slice3(webauthnData, split2));
         if (potentialJson.startsWith("{") && potentialJson.endsWith("}")) {
           try {
             JSON.parse(potentialJson);
@@ -42151,20 +46281,20 @@ ${prettyStateOverride(stateOverride)}`;
     const type2 = getType(envelope);
     if (type2 === "secp256k1") {
       const secp256k12 = envelope;
-      return concat3(toHex4(secp256k12.signature), options.magic ? magicBytes : "0x");
+      return concat3(toHex4(secp256k12.signature), options.magic ? magicBytes3 : "0x");
     }
     if (type2 === "p256") {
       const p2563 = envelope;
-      return concat3(serializedP256Type, fromNumber(p2563.signature.r, { size: 32 }), fromNumber(p2563.signature.s, { size: 32 }), fromNumber(p2563.publicKey.x, { size: 32 }), fromNumber(p2563.publicKey.y, { size: 32 }), fromNumber(p2563.prehash ? 1 : 0, { size: 1 }), options.magic ? magicBytes : "0x");
+      return concat3(serializedP256Type, fromNumber(p2563.signature.r, { size: 32 }), fromNumber(p2563.signature.s, { size: 32 }), fromNumber(p2563.publicKey.x, { size: 32 }), fromNumber(p2563.publicKey.y, { size: 32 }), fromNumber(p2563.prehash ? 1 : 0, { size: 1 }), options.magic ? magicBytes3 : "0x");
     }
     if (type2 === "webAuthn") {
       const webauthn = envelope;
       const webauthnData = concat3(webauthn.metadata.authenticatorData, fromString2(webauthn.metadata.clientDataJSON));
-      return concat3(serializedWebAuthnType, webauthnData, fromNumber(webauthn.signature.r, { size: 32 }), fromNumber(webauthn.signature.s, { size: 32 }), fromNumber(webauthn.publicKey.x, { size: 32 }), fromNumber(webauthn.publicKey.y, { size: 32 }), options.magic ? magicBytes : "0x");
+      return concat3(serializedWebAuthnType, webauthnData, fromNumber(webauthn.signature.r, { size: 32 }), fromNumber(webauthn.signature.s, { size: 32 }), fromNumber(webauthn.publicKey.x, { size: 32 }), fromNumber(webauthn.publicKey.y, { size: 32 }), options.magic ? magicBytes3 : "0x");
     }
     if (type2 === "keychain") {
       const keychain = envelope;
-      return concat3(serializedKeychainType, keychain.userAddress, serialize2(keychain.inner), options.magic ? magicBytes : "0x");
+      return concat3(serializedKeychainType, keychain.userAddress, serialize2(keychain.inner), options.magic ? magicBytes3 : "0x");
     }
     throw new CoercionError({ envelope });
   }
@@ -42210,9 +46340,9 @@ ${prettyStateOverride(stateOverride)}`;
     }
     throw new CoercionError({ envelope });
   }
-  function validate5(envelope) {
+  function validate7(envelope) {
     try {
-      assert6(envelope);
+      assert8(envelope);
       return true;
     } catch {
       return false;
@@ -42229,7 +46359,7 @@ ${prettyStateOverride(stateOverride)}`;
     })();
     if (!address)
       return false;
-    const envelope = from7(signature);
+    const envelope = from14(signature);
     if (envelope.type === "secp256k1") {
       if (!address)
         return false;
@@ -42261,7 +46391,7 @@ ${prettyStateOverride(stateOverride)}`;
         signature: envelope.signature
       });
     }
-    throw new VerificationError(`Unable to verify signature envelope of type "${envelope.type}".`);
+    throw new VerificationError2(`Unable to verify signature envelope of type "${envelope.type}".`);
   }
   var CoercionError = class extends BaseError3 {
     constructor({ envelope }) {
@@ -42300,7 +46430,7 @@ Provided: ${stringify2(envelope)}`);
       });
     }
   };
-  var VerificationError = class extends BaseError3 {
+  var VerificationError2 = class extends BaseError3 {
     constructor() {
       super(...arguments);
       Object.defineProperty(this, "name", {
@@ -42313,7 +46443,7 @@ Provided: ${stringify2(envelope)}`);
   };
 
   // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/tempo/AuthorizationTempo.js
-  function from8(authorization, options = {}) {
+  function from15(authorization, options = {}) {
     if (typeof authorization.chainId === "string")
       return fromRpc5(authorization);
     if (options.signature) {
@@ -42343,7 +46473,7 @@ Provided: ${stringify2(envelope)}`);
     };
     if (signatureSerialized)
       args.signature = deserialize2(signatureSerialized);
-    return from8(args);
+    return from15(args);
   }
   function fromTupleList(tupleList) {
     const list = [];
@@ -42363,7 +46493,7 @@ Provided: ${stringify2(envelope)}`);
   function toRpcList2(authorizationList) {
     return authorizationList.map((x) => toRpc6(x));
   }
-  function toTuple2(authorization) {
+  function toTuple3(authorization) {
     const { address, chainId, nonce: nonce2 } = authorization;
     const signature = authorization.signature ? serialize2(authorization.signature) : void 0;
     return [
@@ -42378,29 +46508,29 @@ Provided: ${stringify2(envelope)}`);
       return [];
     const tupleList = [];
     for (const authorization of list)
-      tupleList.push(toTuple2(authorization));
+      tupleList.push(toTuple3(authorization));
     return tupleList;
   }
 
   // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/tempo/KeyAuthorization.js
   var KeyAuthorization_exports = {};
   __export(KeyAuthorization_exports, {
-    from: () => from9,
+    from: () => from16,
     fromRpc: () => fromRpc6,
     fromTuple: () => fromTuple3,
-    getSignPayload: () => getSignPayload,
-    hash: () => hash2,
+    getSignPayload: () => getSignPayload2,
+    hash: () => hash3,
     toRpc: () => toRpc7,
-    toTuple: () => toTuple3
+    toTuple: () => toTuple4
   });
   init_Hex();
-  function from9(authorization, options = {}) {
+  function from16(authorization, options = {}) {
     if (typeof authorization.expiry === "string")
       return fromRpc6(authorization);
     if (options.signature)
       return {
         ...authorization,
-        signature: from7(options.signature)
+        signature: from14(options.signature)
       };
     return authorization;
   }
@@ -42450,13 +46580,13 @@ Provided: ${stringify2(envelope)}`);
     };
     if (signatureSerialized)
       args.signature = deserialize2(signatureSerialized);
-    return from9(args);
+    return from16(args);
   }
-  function getSignPayload(authorization) {
-    return hash2(authorization);
+  function getSignPayload2(authorization) {
+    return hash3(authorization);
   }
-  function hash2(authorization) {
-    const [authorizationTuple] = toTuple3(authorization);
+  function hash3(authorization) {
+    const [authorizationTuple] = toTuple4(authorization);
     const serialized = fromHex3(authorizationTuple);
     return keccak2562(serialized);
   }
@@ -42474,7 +46604,7 @@ Provided: ${stringify2(envelope)}`);
       keyType: type2
     };
   }
-  function toTuple3(authorization) {
+  function toTuple4(authorization) {
     const { address, chainId = 0n, expiry, limits } = authorization;
     const signature = authorization.signature ? serialize2(authorization.signature) : void 0;
     const type2 = (() => {
@@ -42502,20 +46632,20 @@ Provided: ${stringify2(envelope)}`);
   // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/tempo/PoolId.js
   var PoolId_exports = {};
   __export(PoolId_exports, {
-    from: () => from11
+    from: () => from18
   });
   init_Hex();
 
   // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/tempo/TokenId.js
   var TokenId_exports = {};
   __export(TokenId_exports, {
-    from: () => from10,
+    from: () => from17,
     fromAddress: () => fromAddress,
     toAddress: () => toAddress
   });
   init_Hex();
   var tip20Prefix = "0x20c0";
-  function from10(tokenIdOrAddress) {
+  function from17(tokenIdOrAddress) {
     if (typeof tokenIdOrAddress === "bigint" || typeof tokenIdOrAddress === "number")
       return BigInt(tokenIdOrAddress);
     return fromAddress(tokenIdOrAddress);
@@ -42535,7 +46665,7 @@ Provided: ${stringify2(envelope)}`);
   }
 
   // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/tempo/PoolId.js
-  function from11(value) {
+  function from18(value) {
     return keccak2562(concat3(padLeft(toAddress(value.userToken), 32), padLeft(toAddress(value.validatorToken), 32)));
   }
 
@@ -42835,17 +46965,17 @@ Provided: ${stringify2(envelope)}`);
   __export(TxEnvelopeTempo_exports, {
     CallsEmptyError: () => CallsEmptyError,
     InvalidValidityWindowError: () => InvalidValidityWindowError,
-    assert: () => assert7,
+    assert: () => assert9,
     deserialize: () => deserialize3,
     feePayerMagic: () => feePayerMagic,
-    from: () => from12,
+    from: () => from19,
     getFeePayerSignPayload: () => getFeePayerSignPayload,
-    getSignPayload: () => getSignPayload2,
-    hash: () => hash3,
+    getSignPayload: () => getSignPayload3,
+    hash: () => hash4,
     serialize: () => serialize4,
     serializedType: () => serializedType,
     type: () => type,
-    validate: () => validate6
+    validate: () => validate8
   });
 
   // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/AccessList.js
@@ -42859,7 +46989,7 @@ Provided: ${stringify2(envelope)}`);
         assert4(address, { strict: false });
       list.push({
         address,
-        storageKeys: storageKeys.map((key) => validate3(key) ? key : trimLeft(key))
+        storageKeys: storageKeys.map((key) => validate3(key) ? key : trimLeft2(key))
       });
     }
     return list;
@@ -42982,7 +47112,7 @@ Provided: ${stringify2(envelope)}`);
   var feePayerMagic = "0x78";
   var serializedType = "0x76";
   var type = "tempo";
-  function assert7(envelope) {
+  function assert9(envelope) {
     const { calls, chainId, maxFeePerGas, maxPriorityFeePerGas, validBefore, validAfter } = envelope;
     if (!calls || calls.length === 0)
       throw new CallsEmptyError();
@@ -43090,23 +47220,23 @@ Provided: ${stringify2(envelope)}`);
         ...transaction,
         signature: signatureEnvelope
       };
-    assert7(transaction);
+    assert9(transaction);
     return transaction;
   }
-  function from12(envelope, options = {}) {
+  function from19(envelope, options = {}) {
     const { feePayerSignature, signature } = options;
     const envelope_ = typeof envelope === "string" ? deserialize3(envelope) : envelope;
-    assert7(envelope_);
+    assert9(envelope_);
     return {
       ...envelope_,
-      ...signature ? { signature: from7(signature) } : {},
-      ...feePayerSignature ? { feePayerSignature: from6(feePayerSignature) } : {},
+      ...signature ? { signature: from14(signature) } : {},
+      ...feePayerSignature ? { feePayerSignature: from7(feePayerSignature) } : {},
       type: "tempo"
     };
   }
   function serialize4(envelope, options = {}) {
     const { accessList, authorizationList, calls, chainId, feeToken, gas, keyAuthorization, nonce: nonce2, nonceKey, maxFeePerGas, maxPriorityFeePerGas, validBefore, validAfter } = envelope;
-    assert7(envelope);
+    assert9(envelope);
     const accessTupleList = toTupleList2(accessList);
     const signature = options.signature || envelope.signature;
     const authorizationTupleList = toTupleList(authorizationList);
@@ -43139,15 +47269,15 @@ Provided: ${stringify2(envelope)}`);
       typeof feeToken === "bigint" || typeof feeToken === "string" ? toAddress(feeToken) : "0x",
       feePayerSignatureOrSender,
       authorizationTupleList,
-      ...keyAuthorization ? [toTuple3(keyAuthorization)] : [],
-      ...signature ? [serialize2(from7(signature))] : []
+      ...keyAuthorization ? [toTuple4(keyAuthorization)] : [],
+      ...signature ? [serialize2(from14(signature))] : []
     ];
     return concat3(options.format === "feePayer" ? feePayerMagic : serializedType, fromHex3(serialized));
   }
-  function getSignPayload2(envelope) {
-    return hash3(envelope, { presign: true });
+  function getSignPayload3(envelope) {
+    return hash4(envelope, { presign: true });
   }
-  function hash3(envelope, options = {}) {
+  function hash4(envelope, options = {}) {
     const serialized = serialize4({
       ...envelope,
       ...options.presign ? {
@@ -43164,9 +47294,9 @@ Provided: ${stringify2(envelope)}`);
     });
     return keccak2562(serialized);
   }
-  function validate6(envelope) {
+  function validate8(envelope) {
     try {
-      assert7(envelope);
+      assert9(envelope);
       return true;
     } catch {
       return false;
@@ -43284,14 +47414,14 @@ Provided: ${stringify2(envelope)}`);
           });
         throw new Error("Unable to extract sender from transaction or signature.");
       })();
-      const hash4 = TxEnvelopeTempo_exports.getFeePayerSignPayload(tx, {
+      const hash5 = TxEnvelopeTempo_exports.getFeePayerSignPayload(tx, {
         sender
       });
       const feePayerSignature2 = await transaction.feePayer.sign({
-        hash: hash4
+        hash: hash5
       });
       return TxEnvelopeTempo_exports.serialize(tx, {
-        feePayerSignature: from6(feePayerSignature2)
+        feePayerSignature: from7(feePayerSignature2)
       });
     }
     if (feePayer === true) {
@@ -43495,6 +47625,137 @@ Provided: ${stringify2(envelope)}`);
   var tempo = tempoTestnet;
 
   // node_modules/.pnpm/tempo.ts@0.11.1_@remix-run+headers@0.17.2_@remix-run+route-pattern@0.15.3_@remix-run+se_1cd6130ea8fff18f43cb1ad22b1ec2f0/node_modules/tempo.ts/dist/viem/Abis.js
+  var Abis_exports = {};
+  __export(Abis_exports, {
+    accountKeychain: () => accountKeychain,
+    feeAmm: () => feeAmm,
+    feeManager: () => feeManager,
+    nonce: () => nonce,
+    pathUsd: () => pathUsd,
+    stablecoinExchange: () => stablecoinExchange,
+    tip20: () => tip20,
+    tip20Factory: () => tip20Factory,
+    tip20RewardsRegistry: () => tip20RewardsRegistry,
+    tip403Registry: () => tip403Registry,
+    tipAccountRegistrar: () => tipAccountRegistrar,
+    validatorConfig: () => validatorConfig
+  });
+  var accountKeychain = [
+    {
+      name: "authorizeKey",
+      type: "function",
+      stateMutability: "nonpayable",
+      inputs: [
+        { type: "address", name: "keyId" },
+        { type: "uint8", name: "signatureType" },
+        { type: "uint64", name: "expiry" },
+        { type: "bool", name: "enforceLimits" },
+        {
+          type: "tuple[]",
+          name: "limits",
+          components: [
+            { type: "address", name: "token" },
+            { type: "uint256", name: "amount" }
+          ]
+        }
+      ],
+      outputs: []
+    },
+    {
+      name: "revokeKey",
+      type: "function",
+      stateMutability: "nonpayable",
+      inputs: [{ type: "address", name: "keyId" }],
+      outputs: []
+    },
+    {
+      name: "updateSpendingLimit",
+      type: "function",
+      stateMutability: "nonpayable",
+      inputs: [
+        { type: "address", name: "keyId" },
+        { type: "address", name: "token" },
+        { type: "uint256", name: "newLimit" }
+      ],
+      outputs: []
+    },
+    {
+      name: "getKey",
+      type: "function",
+      stateMutability: "view",
+      inputs: [
+        { type: "address", name: "account" },
+        { type: "address", name: "keyId" }
+      ],
+      outputs: [
+        {
+          type: "tuple",
+          components: [
+            { type: "uint8", name: "signatureType" },
+            { type: "address", name: "keyId" },
+            { type: "uint64", name: "expiry" },
+            { type: "bool", name: "enforceLimits" },
+            { type: "bool", name: "isRevoked" }
+          ]
+        }
+      ]
+    },
+    {
+      name: "getRemainingLimit",
+      type: "function",
+      stateMutability: "view",
+      inputs: [
+        { type: "address", name: "account" },
+        { type: "address", name: "keyId" },
+        { type: "address", name: "token" }
+      ],
+      outputs: [{ type: "uint256" }]
+    },
+    {
+      name: "getTransactionKey",
+      type: "function",
+      stateMutability: "view",
+      inputs: [],
+      outputs: [{ type: "address" }]
+    },
+    {
+      name: "KeyAuthorized",
+      type: "event",
+      inputs: [
+        { type: "address", name: "account", indexed: true },
+        { type: "bytes32", name: "publicKey", indexed: true },
+        { type: "uint8", name: "signatureType" },
+        { type: "uint64", name: "expiry" }
+      ]
+    },
+    {
+      name: "KeyRevoked",
+      type: "event",
+      inputs: [
+        { type: "address", name: "account", indexed: true },
+        { type: "bytes32", name: "publicKey", indexed: true }
+      ]
+    },
+    {
+      name: "SpendingLimitUpdated",
+      type: "event",
+      inputs: [
+        { type: "address", name: "account", indexed: true },
+        { type: "bytes32", name: "publicKey", indexed: true },
+        { type: "address", name: "token", indexed: true },
+        { type: "uint256", name: "newLimit" }
+      ]
+    },
+    { name: "UnauthorizedCaller", type: "error", inputs: [] },
+    { name: "KeyAlreadyExists", type: "error", inputs: [] },
+    { name: "KeyNotFound", type: "error", inputs: [] },
+    { name: "KeyExpired", type: "error", inputs: [] },
+    { name: "SpendingLimitExceeded", type: "error", inputs: [] },
+    { name: "InvalidSignatureType", type: "error", inputs: [] },
+    { name: "ZeroPublicKey", type: "error", inputs: [] },
+    { name: "ExpiryInPast", type: "error", inputs: [] },
+    { name: "KeyAlreadyRevoked", type: "error", inputs: [] }
+  ];
   var nonce = [
     {
       name: "getNonce",
@@ -43533,6 +47794,22 @@ Provided: ${stringify2(envelope)}`);
     { name: "ProtocolNonceNotSupported", type: "error", inputs: [] },
     { name: "InvalidNonceKey", type: "error", inputs: [] },
     { name: "NonceOverflow", type: "error", inputs: [] }
+  ];
+  var pathUsd = [
+    {
+      name: "TRANSFER_ROLE",
+      type: "function",
+      stateMutability: "view",
+      inputs: [],
+      outputs: [{ type: "bytes32" }]
+    },
+    {
+      name: "RECEIVE_WITH_MEMO_ROLE",
+      type: "function",
+      stateMutability: "view",
+      inputs: [],
+      outputs: [{ type: "bytes32" }]
+    }
   ];
   var stablecoinExchange = [
     {
@@ -44506,6 +48783,17 @@ Provided: ${stringify2(envelope)}`);
       ]
     }
   ];
+  var tip20RewardsRegistry = [
+    {
+      name: "finalizeStreams",
+      type: "function",
+      stateMutability: "nonpayable",
+      inputs: [],
+      outputs: []
+    },
+    { name: "Unauthorized", type: "error", inputs: [] },
+    { name: "StreamsAlreadyFinalized", type: "error", inputs: [] }
+  ];
   var tip403Registry = [
     {
       name: "policyIdCounter",
@@ -44628,6 +48916,31 @@ Provided: ${stringify2(envelope)}`);
     { name: "Unauthorized", type: "error", inputs: [] },
     { name: "IncompatiblePolicyType", type: "error", inputs: [] },
     { name: "SelfOwnedPolicyMustBeWhitelist", type: "error", inputs: [] }
+  ];
+  var tipAccountRegistrar = [
+    {
+      name: "delegateToDefault",
+      type: "function",
+      stateMutability: "nonpayable",
+      inputs: [
+        { type: "bytes32", name: "hash" },
+        { type: "bytes", name: "signature" }
+      ],
+      outputs: [{ type: "address", name: "authority" }]
+    },
+    {
+      name: "delegateToDefault",
+      type: "function",
+      stateMutability: "nonpayable",
+      inputs: [
+        { type: "bytes", name: "message" },
+        { type: "bytes", name: "signature" }
+      ],
+      outputs: [{ type: "address", name: "authority" }]
+    },
+    { name: "InvalidSignature", type: "error", inputs: [] },
+    { name: "CodeNotEmpty", type: "error", inputs: [] },
+    { name: "NonceNotZero", type: "error", inputs: [] }
   ];
   var feeManager = [
     {
@@ -44910,11 +49223,103 @@ Provided: ${stringify2(envelope)}`);
     { name: "TokenTransferFailed", type: "error", inputs: [] },
     { name: "InternalError", type: "error", inputs: [] }
   ];
+  var validatorConfig = [
+    {
+      name: "getValidators",
+      type: "function",
+      stateMutability: "view",
+      inputs: [],
+      outputs: [
+        {
+          type: "tuple[]",
+          name: "validators",
+          components: [
+            { type: "bytes32", name: "publicKey" },
+            { type: "bool", name: "active" },
+            { type: "uint64", name: "index" },
+            { type: "address", name: "validatorAddress" },
+            { type: "string", name: "inboundAddress" },
+            { type: "string", name: "outboundAddress" }
+          ]
+        }
+      ]
+    },
+    {
+      name: "addValidator",
+      type: "function",
+      stateMutability: "nonpayable",
+      inputs: [
+        { type: "address", name: "newValidatorAddress" },
+        { type: "bytes32", name: "publicKey" },
+        { type: "bool", name: "active" },
+        { type: "string", name: "inboundAddress" },
+        { type: "string", name: "outboundAddress" }
+      ],
+      outputs: []
+    },
+    {
+      name: "updateValidator",
+      type: "function",
+      stateMutability: "nonpayable",
+      inputs: [
+        { type: "address", name: "newValidatorAddress" },
+        { type: "bytes32", name: "publicKey" },
+        { type: "string", name: "inboundAddress" },
+        { type: "string", name: "outboundAddress" }
+      ],
+      outputs: []
+    },
+    {
+      name: "changeValidatorStatus",
+      type: "function",
+      stateMutability: "nonpayable",
+      inputs: [
+        { type: "address", name: "validator" },
+        { type: "bool", name: "active" }
+      ],
+      outputs: []
+    },
+    {
+      name: "owner",
+      type: "function",
+      stateMutability: "view",
+      inputs: [],
+      outputs: [{ type: "address" }]
+    },
+    {
+      name: "changeOwner",
+      type: "function",
+      stateMutability: "nonpayable",
+      inputs: [{ type: "address", name: "newOwner" }],
+      outputs: []
+    },
+    { name: "Unauthorized", type: "error", inputs: [] },
+    { name: "ValidatorAlreadyExists", type: "error", inputs: [] },
+    { name: "ValidatorNotFound", type: "error", inputs: [] },
+    {
+      name: "NotHostPort",
+      type: "error",
+      inputs: [
+        { type: "string", name: "field" },
+        { type: "string", name: "input" },
+        { type: "string", name: "backtrace" }
+      ]
+    },
+    {
+      name: "NotIpPort",
+      type: "error",
+      inputs: [
+        { type: "string", name: "field" },
+        { type: "string", name: "input" },
+        { type: "string", name: "backtrace" }
+      ]
+    }
+  ];
 
   // node_modules/.pnpm/tempo.ts@0.11.1_@remix-run+headers@0.17.2_@remix-run+route-pattern@0.15.3_@remix-run+se_1cd6130ea8fff18f43cb1ad22b1ec2f0/node_modules/tempo.ts/dist/viem/Addresses.js
   var feeManager2 = "0xfeec000000000000000000000000000000000000";
   var nonceManager = "0x4e4F4E4345000000000000000000000000000000";
-  var pathUsd = "0x20c0000000000000000000000000000000000000";
+  var pathUsd2 = "0x20c0000000000000000000000000000000000000";
   var stablecoinExchange2 = "0xdec0000000000000000000000000000000000000";
   var tip20Factory2 = "0x20fc000000000000000000000000000000000000";
   var tip403Registry2 = "0x403c000000000000000000000000000000000000";
@@ -45533,17 +49938,17 @@ Provided: ${stringify2(envelope)}`);
       receipt
     };
   }
-  async function getBalance(client, parameters) {
+  async function getBalance2(client, parameters) {
     const { account: acc = client.account, token, ...rest } = parameters;
     const address = acc ? parseAccount(acc).address : void 0;
     if (!address)
       throw new Error("account is required.");
     return readContract(client, {
       ...rest,
-      ...getBalance.call({ account: address, token })
+      ...getBalance2.call({ account: address, token })
     });
   }
-  (function(getBalance5) {
+  (function(getBalance6) {
     function call2(args) {
       const { account, token } = args;
       return defineCall({
@@ -45553,8 +49958,8 @@ Provided: ${stringify2(envelope)}`);
         functionName: "balanceOf"
       });
     }
-    getBalance5.call = call2;
-  })(getBalance || (getBalance = {}));
+    getBalance6.call = call2;
+  })(getBalance2 || (getBalance2 = {}));
   async function getBuyQuote(client, parameters) {
     const { tokenIn, tokenOut, amountOut, ...rest } = parameters;
     return readContract(client, {
@@ -45950,16 +50355,16 @@ Provided: ${stringify2(envelope)}`);
     });
     return createPairSync(client, parameters);
   }
-  function getBalance2(config2, parameters) {
+  function getBalance3(config2, parameters) {
     const { chainId, ...rest } = parameters;
     const client = config2.getClient({ chainId });
-    return getBalance(client, rest);
+    return getBalance2(client, rest);
   }
-  (function(getBalance5) {
+  (function(getBalance6) {
     function queryKey(parameters) {
       return ["getBalance", parameters];
     }
-    getBalance5.queryKey = queryKey;
+    getBalance6.queryKey = queryKey;
     function queryOptions(config2, parameters) {
       const { query, ...rest } = parameters;
       return {
@@ -45969,12 +50374,12 @@ Provided: ${stringify2(envelope)}`);
           const [, { account, ...parameters2 }] = queryKey2;
           if (!account)
             throw new Error("account is required.");
-          return await getBalance5(config2, { account, ...parameters2 });
+          return await getBalance6(config2, { account, ...parameters2 });
         }
       };
     }
-    getBalance5.queryOptions = queryOptions;
-  })(getBalance2 || (getBalance2 = {}));
+    getBalance6.queryOptions = queryOptions;
+  })(getBalance3 || (getBalance3 = {}));
   function getBuyQuote2(config2, parameters) {
     const { chainId, ...rest } = parameters;
     const client = config2.getClient({ chainId });
@@ -46206,8 +50611,8 @@ Provided: ${stringify2(envelope)}`);
       method: "tempo_fundAddress",
       params: [account.address]
     });
-    const receipts = await Promise.all(hashes.map((hash4) => waitForTransactionReceipt(client, {
-      hash: hash4,
+    const receipts = await Promise.all(hashes.map((hash5) => waitForTransactionReceipt(client, {
+      hash: hash5,
       checkReplacement: false,
       timeout
     })));
@@ -47318,8 +51723,8 @@ Provided: ${stringify2(envelope)}`);
   }
   (function(burnBlocked3) {
     async function inner(action, client, parameters) {
-      const { amount, from: from17, token, ...rest } = parameters;
-      const call3 = burnBlocked3.call({ amount, from: from17, token });
+      const { amount, from: from24, token, ...rest } = parameters;
+      const call3 = burnBlocked3.call({ amount, from: from24, token });
       return await action(client, {
         ...rest,
         ...call3
@@ -47327,12 +51732,12 @@ Provided: ${stringify2(envelope)}`);
     }
     burnBlocked3.inner = inner;
     function call2(args) {
-      const { from: from17, amount, token } = args;
+      const { from: from24, amount, token } = args;
       return defineCall({
         address: TokenId_exports.toAddress(token),
         abi: tip20,
         functionName: "burnBlocked",
-        args: [from17, amount]
+        args: [from24, amount]
       });
     }
     burnBlocked3.call = call2;
@@ -47479,7 +51884,7 @@ Provided: ${stringify2(envelope)}`);
     }
     create6.inner = inner;
     function call2(args) {
-      const { name, symbol, currency, quoteToken = pathUsd, admin } = args;
+      const { name, symbol, currency, quoteToken = pathUsd2, admin } = args;
       return defineCall({
         address: tip20Factory2,
         abi: tip20Factory,
@@ -47535,17 +51940,17 @@ Provided: ${stringify2(envelope)}`);
     }
     getAllowance3.call = call2;
   })(getAllowance || (getAllowance = {}));
-  async function getBalance3(client, parameters) {
+  async function getBalance4(client, parameters) {
     const { account = client.account, ...rest } = parameters;
     const address = account ? parseAccount(account).address : void 0;
     if (!address)
       throw new Error("account is required.");
     return readContract(client, {
       ...rest,
-      ...getBalance3.call({ account: address, ...rest })
+      ...getBalance4.call({ account: address, ...rest })
     });
   }
-  (function(getBalance5) {
+  (function(getBalance6) {
     function call2(args) {
       const { account, token } = args;
       return defineCall({
@@ -47555,39 +51960,39 @@ Provided: ${stringify2(envelope)}`);
         args: [account]
       });
     }
-    getBalance5.call = call2;
-  })(getBalance3 || (getBalance3 = {}));
+    getBalance6.call = call2;
+  })(getBalance4 || (getBalance4 = {}));
   async function getMetadata(client, parameters) {
     const { token, ...rest } = parameters;
     const address = TokenId_exports.toAddress(token);
-    const abi = tip20;
-    if (TokenId_exports.from(token) === TokenId_exports.fromAddress(pathUsd))
+    const abi2 = tip20;
+    if (TokenId_exports.from(token) === TokenId_exports.fromAddress(pathUsd2))
       return multicall(client, {
         ...rest,
         contracts: [
           {
             address,
-            abi,
+            abi: abi2,
             functionName: "currency"
           },
           {
             address,
-            abi,
+            abi: abi2,
             functionName: "decimals"
           },
           {
             address,
-            abi,
+            abi: abi2,
             functionName: "name"
           },
           {
             address,
-            abi,
+            abi: abi2,
             functionName: "symbol"
           },
           {
             address,
-            abi,
+            abi: abi2,
             functionName: "totalSupply"
           }
         ],
@@ -47605,47 +52010,47 @@ Provided: ${stringify2(envelope)}`);
       contracts: [
         {
           address,
-          abi,
+          abi: abi2,
           functionName: "currency"
         },
         {
           address,
-          abi,
+          abi: abi2,
           functionName: "decimals"
         },
         {
           address,
-          abi,
+          abi: abi2,
           functionName: "quoteToken"
         },
         {
           address,
-          abi,
+          abi: abi2,
           functionName: "name"
         },
         {
           address,
-          abi,
+          abi: abi2,
           functionName: "paused"
         },
         {
           address,
-          abi,
+          abi: abi2,
           functionName: "supplyCap"
         },
         {
           address,
-          abi,
+          abi: abi2,
           functionName: "symbol"
         },
         {
           address,
-          abi,
+          abi: abi2,
           functionName: "totalSupply"
         },
         {
           address,
-          abi,
+          abi: abi2,
           functionName: "transferPolicyId"
         }
       ],
@@ -47926,13 +52331,13 @@ Provided: ${stringify2(envelope)}`);
     }
     revokeRoles3.inner = inner;
     function call2(args) {
-      const { token, from: from17, role } = args;
+      const { token, from: from24, role } = args;
       const roleHash = TokenRole_exports.serialize(role);
       return defineCall({
         address: TokenId_exports.toAddress(token),
         abi: tip20,
         functionName: "revokeRole",
-        args: [roleHash, from17]
+        args: [roleHash, from24]
       });
     }
     revokeRoles3.call = call2;
@@ -48062,8 +52467,8 @@ Provided: ${stringify2(envelope)}`);
   }
   (function(transfer3) {
     async function inner(action, client, parameters) {
-      const { amount, from: from17, memo, token, to: to2, ...rest } = parameters;
-      const call3 = transfer3.call({ amount, from: from17, memo, token, to: to2 });
+      const { amount, from: from24, memo, token, to: to2, ...rest } = parameters;
+      const call3 = transfer3.call({ amount, from: from24, memo, token, to: to2 });
       return await action(client, {
         ...rest,
         ...call3
@@ -48071,22 +52476,22 @@ Provided: ${stringify2(envelope)}`);
     }
     transfer3.inner = inner;
     function call2(args) {
-      const { amount, from: from17, memo, token, to: to2 } = args;
+      const { amount, from: from24, memo, token, to: to2 } = args;
       const callArgs = (() => {
-        if (memo && from17)
+        if (memo && from24)
           return {
             functionName: "transferFromWithMemo",
-            args: [from17, to2, amount, padLeft(memo, 32)]
+            args: [from24, to2, amount, padLeft(memo, 32)]
           };
         if (memo)
           return {
             functionName: "transferWithMemo",
             args: [to2, amount, padLeft(memo, 32)]
           };
-        if (from17)
+        if (from24)
           return {
             functionName: "transferFrom",
-            args: [from17, to2, amount]
+            args: [from24, to2, amount]
           };
         return {
           functionName: "transfer",
@@ -48522,16 +52927,16 @@ Provided: ${stringify2(envelope)}`);
     }
     getAllowance3.queryOptions = queryOptions;
   })(getAllowance2 || (getAllowance2 = {}));
-  function getBalance4(config2, parameters) {
+  function getBalance5(config2, parameters) {
     const { chainId, ...rest } = parameters;
     const client = config2.getClient({ chainId });
-    return getBalance3(client, rest);
+    return getBalance4(client, rest);
   }
-  (function(getBalance5) {
+  (function(getBalance6) {
     function queryKey(parameters) {
       return ["getBalance", parameters];
     }
-    getBalance5.queryKey = queryKey;
+    getBalance6.queryKey = queryKey;
     function queryOptions(config2, parameters) {
       const { query, ...rest } = parameters;
       return {
@@ -48539,12 +52944,12 @@ Provided: ${stringify2(envelope)}`);
         queryKey: queryKey(rest),
         async queryFn({ queryKey: queryKey2 }) {
           const [, parameters2] = queryKey2;
-          return await getBalance5(config2, parameters2) ?? null;
+          return await getBalance6(config2, parameters2) ?? null;
         }
       };
     }
-    getBalance5.queryOptions = queryOptions;
-  })(getBalance4 || (getBalance4 = {}));
+    getBalance6.queryOptions = queryOptions;
+  })(getBalance5 || (getBalance5 = {}));
   function getMetadata2(config2, parameters) {
     const { chainId, ...rest } = parameters;
     const client = config2.getClient({ chainId });
@@ -48935,7 +53340,7 @@ Provided: ${stringify2(envelope)}`);
 
   // node_modules/.pnpm/tempo.ts@0.11.1_@remix-run+headers@0.17.2_@remix-run+route-pattern@0.15.3_@remix-run+se_1cd6130ea8fff18f43cb1ad22b1ec2f0/node_modules/tempo.ts/dist/viem/Storage.js
   init_Json();
-  function from13(storage, options = {}) {
+  function from20(storage, options = {}) {
     const key = (name) => `${options.key ? `${options.key}:` : ""}${name}`;
     return {
       getItem: (name) => storage.getItem(key(name)),
@@ -48945,7 +53350,7 @@ Provided: ${stringify2(envelope)}`);
   }
   function idb() {
     const store2 = typeof indexedDB !== "undefined" ? createStore3("tempo.ts", "store") : void 0;
-    return from13({
+    return from20({
       async getItem(name) {
         const value = await get(name, store2);
         if (value === null)
@@ -48963,7 +53368,7 @@ Provided: ${stringify2(envelope)}`);
   function localStorage2(options = {}) {
     if (typeof window === "undefined")
       return memory();
-    return from13({
+    return from20({
       async getItem(name) {
         const item = window.localStorage.getItem(name);
         if (item === null)
@@ -48984,7 +53389,7 @@ Provided: ${stringify2(envelope)}`);
   }
   var store = /* @__PURE__ */ new Map();
   function memory(options = {}) {
-    return from13({
+    return from20({
       getItem(name) {
         return store.get(name) ?? null;
       },
@@ -49002,13 +53407,13 @@ Provided: ${stringify2(envelope)}`);
     const { id } = credential;
     const { storage } = options;
     const publicKey = fromHex2(credential.publicKey);
-    return from14({
+    return from21({
       keyType: "webAuthn",
       publicKey,
-      async sign({ hash: hash4 }) {
+      async sign({ hash: hash5 }) {
         const { metadata, signature } = await sign({
           ...options,
-          challenge: hash4,
+          challenge: hash5,
           credentialId: id
         });
         return SignatureEnvelope_exports.serialize({
@@ -49024,12 +53429,12 @@ Provided: ${stringify2(envelope)}`);
   function fromWebCryptoP256(keyPair, options = {}) {
     const { access, storage } = options;
     const { publicKey, privateKey } = keyPair;
-    return from14({
+    return from21({
       access,
       keyType: "p256",
       publicKey,
-      async sign({ hash: hash4 }) {
-        const signature = await sign2({ payload: hash4, privateKey });
+      async sign({ hash: hash5 }) {
+        const signature = await sign2({ payload: hash5, privateKey });
         return SignatureEnvelope_exports.serialize({
           signature,
           prehash: true,
@@ -49046,9 +53451,9 @@ Provided: ${stringify2(envelope)}`);
     const publicKey = toHex2(parameters.publicKey, {
       includePrefix: false
     });
-    const storage = from13(parameters.storage ?? memory(), { key: `tempo.ts:${address.toLowerCase()}` });
-    async function sign3({ hash: hash4 }) {
-      const signature = await parameters.sign({ hash: hash4 });
+    const storage = from20(parameters.storage ?? memory(), { key: `tempo.ts:${address.toLowerCase()}` });
+    async function sign3({ hash: hash5 }) {
+      const signature = await parameters.sign({ hash: hash5 });
       if (parentAddress)
         return SignatureEnvelope_exports.serialize(SignatureEnvelope_exports.from({
           userAddress: parentAddress,
@@ -49151,7 +53556,7 @@ Provided: ${stringify2(envelope)}`);
       source: "accessKey"
     };
   }
-  function from14(parameters) {
+  function from21(parameters) {
     const { access } = parameters;
     if (access)
       return fromAccessKey(parameters);
@@ -49488,7 +53893,7 @@ Provided: ${stringify2(envelope)}`);
   });
 
   // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/core/RpcRequest.js
-  function from15(options) {
+  function from22(options) {
     return {
       ...options,
       jsonrpc: "2.0"
@@ -49505,7 +53910,7 @@ Provided: ${stringify2(envelope)}`);
       return {
         ...t,
         async request(args) {
-          const request = from15(args);
+          const request = from22(args);
           const client = createClient({
             account,
             chain,
@@ -49513,7 +53918,7 @@ Provided: ${stringify2(envelope)}`);
           });
           if (request.method === "wallet_sendCalls") {
             const params = request.params[0] ?? {};
-            const { capabilities, chainId, from: from17 } = params;
+            const { capabilities, chainId, from: from24 } = params;
             const { sync } = capabilities ?? {};
             if (!account)
               throw new DisconnectedError();
@@ -49521,14 +53926,14 @@ Provided: ${stringify2(envelope)}`);
               throw new UnsupportedChainIdError2();
             if (Number(chainId) !== client.chain.id)
               throw new UnsupportedChainIdError2();
-            if (from17 && !isEqual(from17, account.address))
+            if (from24 && !isEqual(from24, account.address))
               throw new DisconnectedError();
             const calls = (params.calls ?? []).map((call2) => ({
               to: call2.to,
               value: call2.value ? BigInt(call2.value) : void 0,
               data: call2.data
             }));
-            const hash4 = await (async () => {
+            const hash5 = await (async () => {
               if (!sync)
                 return sendTransaction(client, {
                   account,
@@ -49540,7 +53945,7 @@ Provided: ${stringify2(envelope)}`);
               });
               return transactionHash;
             })();
-            const id = concat3(hash4, padLeft(chainId, 32), sendCallsMagic);
+            const id = concat3(hash5, padLeft(chainId, 32), sendCallsMagic);
             return {
               capabilities: { sync },
               id
@@ -49553,9 +53958,9 @@ Provided: ${stringify2(envelope)}`);
             if (!id.endsWith(sendCallsMagic.slice(2)))
               throw new Error("`id` not supported");
             assert2(id);
-            const hash4 = slice3(id, 0, 32);
+            const hash5 = slice3(id, 0, 32);
             const chainId = slice3(id, 32, 64);
-            const receipt = await getTransactionReceipt(client, { hash: hash4 });
+            const receipt = await getTransactionReceipt(client, { hash: hash5 });
             return {
               atomic: true,
               chainId: Number(chainId),
@@ -49620,6 +54025,12 @@ Provided: ${stringify2(envelope)}`);
       signature
     };
   }
+
+  // node_modules/.pnpm/tempo.ts@0.11.1_@remix-run+headers@0.17.2_@remix-run+route-pattern@0.15.3_@remix-run+se_1cd6130ea8fff18f43cb1ad22b1ec2f0/node_modules/tempo.ts/dist/viem/WebCryptoP256.js
+  var WebCryptoP256_exports2 = {};
+  __export(WebCryptoP256_exports2, {
+    createKeyPair: () => createKeyPair
+  });
 
   // node_modules/.pnpm/tempo.ts@0.11.1_@remix-run+headers@0.17.2_@remix-run+route-pattern@0.15.3_@remix-run+se_1cd6130ea8fff18f43cb1ad22b1ec2f0/node_modules/tempo.ts/dist/wagmi/Connector.js
   function webAuthn(options) {
@@ -49696,7 +54107,7 @@ Provided: ${stringify2(envelope)}`);
                 return void 0;
               return await createKeyPair();
             })();
-            const { hash: hash4, keyAuthorization_unsigned } = await (async () => {
+            const { hash: hash5, keyAuthorization_unsigned } = await (async () => {
               if (!keyPair2)
                 return { accessKeyAddress: void 0, hash: void 0 };
               const accessKeyAddress = fromPublicKey(keyPair2.publicKey);
@@ -49705,8 +54116,8 @@ Provided: ${stringify2(envelope)}`);
                 address: accessKeyAddress,
                 type: "p256"
               });
-              const hash5 = KeyAuthorization_exports.getSignPayload(keyAuthorization_unsigned2);
-              return { keyAuthorization_unsigned: keyAuthorization_unsigned2, hash: hash5 };
+              const hash6 = KeyAuthorization_exports.getSignPayload(keyAuthorization_unsigned2);
+              return { keyAuthorization_unsigned: keyAuthorization_unsigned2, hash: hash6 };
             })();
             const lastActiveCredential = !capabilities.selectAccount ? await config2.storage?.getItem("webAuthn.lastActiveCredential") : void 0;
             const credential2 = await getCredential({
@@ -49720,7 +54131,7 @@ Provided: ${stringify2(envelope)}`);
                   throw new Error("publicKey not found.");
                 return publicKey;
               },
-              hash: hash4,
+              hash: hash5,
               rpId: options.getOptions?.rpId ?? options.rpId
             });
             const keyAuthorization2 = keyAuthorization_unsigned ? KeyAuthorization_exports.from({
@@ -49738,12 +54149,12 @@ Provided: ${stringify2(envelope)}`);
         config2.storage?.setItem("webAuthn.lastActiveCredential", normalizeValue(credential));
         config2.storage?.setItem("webAuthn.activeCredential", normalizeValue(credential));
         account = fromWebAuthnP256(credential, {
-          storage: from13(config2.storage)
+          storage: from20(config2.storage)
         });
         if (keyPair) {
           accessKey = fromWebCryptoP256(keyPair, {
             access: account,
-            storage: from13(config2.storage)
+            storage: from20(config2.storage)
           });
           if (parameters.isReconnecting) {
             if ("keyAuthorization" in keyPair && keyPair.keyAuthorization.expiry && keyPair.keyAuthorization.expiry < Date.now() / 1e3) {
@@ -49880,7 +54291,7 @@ Provided: ${stringify2(envelope)}`);
     useWatchMint: () => useWatchMint,
     useWatchRebalanceSwap: () => useWatchRebalanceSwap
   });
-  var import_react10 = __toESM(require_react(), 1);
+  var import_react11 = __toESM(require_react(), 1);
   function usePool(parameters) {
     const { userToken, validatorToken, query = {} } = parameters;
     const config2 = useConfig(parameters);
@@ -49976,7 +54387,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react10.useEffect)(() => {
+    (0, import_react11.useEffect)(() => {
       if (!enabled)
         return;
       if (!onRebalanceSwap)
@@ -49993,7 +54404,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react10.useEffect)(() => {
+    (0, import_react11.useEffect)(() => {
       if (!enabled)
         return;
       if (!onFeeSwap)
@@ -50010,7 +54421,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react10.useEffect)(() => {
+    (0, import_react11.useEffect)(() => {
       if (!enabled)
         return;
       if (!onMint)
@@ -50027,7 +54438,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react10.useEffect)(() => {
+    (0, import_react11.useEffect)(() => {
       if (!enabled)
         return;
       if (!onBurn)
@@ -50068,7 +54479,7 @@ Provided: ${stringify2(envelope)}`);
     useWithdraw: () => useWithdraw,
     useWithdrawSync: () => useWithdrawSync
   });
-  var import_react11 = __toESM(require_react(), 1);
+  var import_react12 = __toESM(require_react(), 1);
   function useBuy(parameters = {}) {
     const { mutation } = parameters;
     const config2 = useConfig(parameters);
@@ -50139,7 +54550,7 @@ Provided: ${stringify2(envelope)}`);
     const { account, query = {} } = parameters;
     const config2 = useConfig(parameters);
     const chainId = useChainId({ config: config2 });
-    const options = getBalance2.queryOptions(config2, {
+    const options = getBalance3.queryOptions(config2, {
       ...parameters,
       chainId: parameters.chainId ?? chainId,
       query: void 0
@@ -50300,7 +54711,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react11.useEffect)(() => {
+    (0, import_react12.useEffect)(() => {
       if (!enabled)
         return;
       if (!onFlipOrderPlaced)
@@ -50317,7 +54728,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react11.useEffect)(() => {
+    (0, import_react12.useEffect)(() => {
       if (!enabled)
         return;
       if (!onOrderCancelled)
@@ -50334,7 +54745,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react11.useEffect)(() => {
+    (0, import_react12.useEffect)(() => {
       if (!enabled)
         return;
       if (!onOrderFilled)
@@ -50351,7 +54762,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react11.useEffect)(() => {
+    (0, import_react12.useEffect)(() => {
       if (!enabled)
         return;
       if (!onOrderPlaced)
@@ -50443,7 +54854,7 @@ Provided: ${stringify2(envelope)}`);
     useWatchActiveKeyCountChanged: () => useWatchActiveKeyCountChanged,
     useWatchNonceIncremented: () => useWatchNonceIncremented
   });
-  var import_react12 = __toESM(require_react(), 1);
+  var import_react13 = __toESM(require_react(), 1);
   function useNonce(parameters = {}) {
     const { account, nonceKey, query = {} } = parameters;
     const config2 = useConfig(parameters);
@@ -50473,7 +54884,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react12.useEffect)(() => {
+    (0, import_react13.useEffect)(() => {
       if (!enabled)
         return;
       if (!onNonceIncremented)
@@ -50490,7 +54901,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react12.useEffect)(() => {
+    (0, import_react13.useEffect)(() => {
       if (!enabled)
         return;
       if (!onActiveKeyCountChanged)
@@ -50521,7 +54932,7 @@ Provided: ${stringify2(envelope)}`);
     useWatchCreate: () => useWatchCreate,
     useWatchWhitelistUpdated: () => useWatchWhitelistUpdated
   });
-  var import_react13 = __toESM(require_react(), 1);
+  var import_react14 = __toESM(require_react(), 1);
   function useCreate(parameters = {}) {
     const { mutation } = parameters;
     const config2 = useConfig(parameters);
@@ -50639,7 +55050,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react13.useEffect)(() => {
+    (0, import_react14.useEffect)(() => {
       if (!enabled)
         return;
       if (!onPolicyCreated)
@@ -50656,7 +55067,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react13.useEffect)(() => {
+    (0, import_react14.useEffect)(() => {
       if (!enabled)
         return;
       if (!onAdminUpdated)
@@ -50673,7 +55084,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react13.useEffect)(() => {
+    (0, import_react14.useEffect)(() => {
       if (!enabled)
         return;
       if (!onWhitelistUpdated)
@@ -50690,7 +55101,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react13.useEffect)(() => {
+    (0, import_react14.useEffect)(() => {
       if (!enabled)
         return;
       if (!onBlacklistUpdated)
@@ -50717,7 +55128,7 @@ Provided: ${stringify2(envelope)}`);
     useWatchRewardRecipientSet: () => useWatchRewardRecipientSet,
     useWatchRewardScheduled: () => useWatchRewardScheduled
   });
-  var import_react14 = __toESM(require_react(), 1);
+  var import_react15 = __toESM(require_react(), 1);
   function useClaim(parameters = {}) {
     const { mutation } = parameters;
     const config2 = useConfig(parameters);
@@ -50813,7 +55224,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react14.useEffect)(() => {
+    (0, import_react15.useEffect)(() => {
       if (!enabled)
         return;
       if (!onRewardScheduled)
@@ -50833,7 +55244,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react14.useEffect)(() => {
+    (0, import_react15.useEffect)(() => {
       if (!enabled)
         return;
       if (!onRewardRecipientSet)
@@ -50898,7 +55309,7 @@ Provided: ${stringify2(envelope)}`);
     useWatchTransfer: () => useWatchTransfer,
     useWatchUpdateQuoteToken: () => useWatchUpdateQuoteToken
   });
-  var import_react15 = __toESM(require_react(), 1);
+  var import_react16 = __toESM(require_react(), 1);
   function useApprove(parameters = {}) {
     const { mutation } = parameters;
     const config2 = useConfig(parameters);
@@ -51047,7 +55458,7 @@ Provided: ${stringify2(envelope)}`);
     const { account, query = {} } = parameters;
     const config2 = useConfig(parameters);
     const chainId = useChainId({ config: config2 });
-    const options = getBalance4.queryOptions(config2, {
+    const options = getBalance5.queryOptions(config2, {
       ...parameters,
       chainId: parameters.chainId ?? chainId,
       query: void 0
@@ -51316,7 +55727,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react15.useEffect)(() => {
+    (0, import_react16.useEffect)(() => {
       if (!enabled)
         return;
       if (!onRoleAdminUpdated)
@@ -51336,7 +55747,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react15.useEffect)(() => {
+    (0, import_react16.useEffect)(() => {
       if (!enabled)
         return;
       if (!onApproval)
@@ -51356,7 +55767,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react15.useEffect)(() => {
+    (0, import_react16.useEffect)(() => {
       if (!enabled)
         return;
       if (!onBurn)
@@ -51376,7 +55787,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react15.useEffect)(() => {
+    (0, import_react16.useEffect)(() => {
       if (!enabled)
         return;
       if (!onTokenCreated)
@@ -51393,7 +55804,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react15.useEffect)(() => {
+    (0, import_react16.useEffect)(() => {
       if (!enabled)
         return;
       if (!onMint)
@@ -51413,7 +55824,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react15.useEffect)(() => {
+    (0, import_react16.useEffect)(() => {
       if (!enabled)
         return;
       if (!onRoleUpdated)
@@ -51433,7 +55844,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react15.useEffect)(() => {
+    (0, import_react16.useEffect)(() => {
       if (!enabled)
         return;
       if (!onTransfer)
@@ -51453,7 +55864,7 @@ Provided: ${stringify2(envelope)}`);
     const config2 = useConfig({ config: parameters.config });
     const configChainId = useChainId({ config: config2 });
     const chainId = parameters.chainId ?? configChainId;
-    (0, import_react15.useEffect)(() => {
+    (0, import_react16.useEffect)(() => {
       if (!enabled)
         return;
       if (!onUpdateQuoteToken)
@@ -51472,18 +55883,18 @@ Provided: ${stringify2(envelope)}`);
   // node_modules/.pnpm/tempo.ts@0.11.1_@remix-run+headers@0.17.2_@remix-run+route-pattern@0.15.3_@remix-run+se_1cd6130ea8fff18f43cb1ad22b1ec2f0/node_modules/tempo.ts/dist/wagmi/KeyManager.js
   var KeyManager_exports = {};
   __export(KeyManager_exports, {
-    from: () => from16,
+    from: () => from23,
     fromStorage: () => fromStorage,
     http: () => http2,
     localStorage: () => localStorage3
   });
   init_Json();
-  function from16(manager) {
+  function from23(manager) {
     return manager;
   }
   function fromStorage(s) {
-    const storage = from13(s, { key: "webAuthn:publicKey" });
-    return from16({
+    const storage = from20(s, { key: "webAuthn:publicKey" });
+    return from23({
       async getPublicKey(parameters) {
         const publicKey = await storage.getItem(parameters.credential.id);
         if (!publicKey)
@@ -51509,7 +55920,7 @@ Provided: ${stringify2(envelope)}`);
         setPublicKey: urls.setPublicKey ?? `${base}/:credentialId`
       };
     })();
-    return from16({
+    return from23({
       async getChallenge() {
         const request = getChallenge instanceof Request ? getChallenge : new Request(getChallenge);
         const response = await fetchFn(request);
@@ -51555,7 +55966,15 @@ Provided: ${stringify2(envelope)}`);
   });
 
   // src/client/App.tsx
-  var import_react16 = __toESM(require_react(), 1);
+  var import_react17 = __toESM(require_react(), 1);
+
+  // node_modules/.pnpm/ox@0.10.6_typescript@5.9.3/node_modules/ox/_esm/index.js
+  init_BlockOverrides();
+  init_Bytes();
+  init_Errors();
+  init_Hex();
+  init_Json();
+  init_Withdrawal();
 
   // src/client/api.ts
   async function getConfig() {
@@ -51632,6 +56051,10 @@ Provided: ${stringify2(envelope)}`);
   function TouchIdIcon() {
     return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("img", { className: "touchid-image", src: "/assets/touchid.svg", alt: "Touch ID" });
   }
+  var accessKeyStore = createStore3("tempo-invoices", "access-keys");
+  var accountKeychainAddress = getAddress("0xAAAAAAAA00000000000000000000000000000000");
+  var accessKeySignatureType = 1;
+  var autopayDebugRef = { current: null };
   function decodeInvoiceId(invoiceId) {
     return hexToString(invoiceId).replace(/\u0000/g, "");
   }
@@ -51643,35 +56066,40 @@ Provided: ${stringify2(envelope)}`);
     return new Date(Number(dueDate) * 1e3).toLocaleDateString();
   }
   function App() {
-    const [merchantAddress, setMerchantAddress] = import_react16.default.useState();
-    const [invoiceRegistryAddress, setInvoiceRegistryAddress] = import_react16.default.useState();
+    const [merchantAddress, setMerchantAddress] = import_react17.default.useState();
+    const [invoiceRegistryAddress, setInvoiceRegistryAddress] = import_react17.default.useState();
     const account = useConnection();
     const connect2 = useConnect();
     const [connector] = useConnectors();
     const disconnect2 = useDisconnect();
-    const [paymentNotice, setPaymentNotice] = import_react16.default.useState(null);
-    const paymentTimerRef = import_react16.default.useRef(null);
-    const [fundingNotice, setFundingNotice] = import_react16.default.useState(null);
-    const fundingTimerRef = import_react16.default.useRef(null);
-    const [copiedId, setCopiedId] = import_react16.default.useState(null);
-    const copyTimerRef = import_react16.default.useRef(null);
+    const walletClient = useWalletClient();
+    const publicClient = usePublicClient();
+    const [paymentNotice, setPaymentNotice] = import_react17.default.useState(null);
+    const paymentTimerRef = import_react17.default.useRef(null);
+    const [fundingNotice, setFundingNotice] = import_react17.default.useState(null);
+    const fundingTimerRef = import_react17.default.useRef(null);
+    const [autopayNotice, setAutopayNotice] = import_react17.default.useState(null);
+    const autopayTimerRef = import_react17.default.useRef(null);
+    const [copiedId, setCopiedId] = import_react17.default.useState(null);
+    const copyTimerRef = import_react17.default.useRef(null);
     const alphaUsdToken = "0x20c0000000000000000000000000000000000001";
     const explorerBaseUrl = "https://explorer.tempo.xyz";
     const balanceQuery = Hooks_exports.token.useGetBalance({
       account: account.address,
       token: alphaUsdToken
     });
-    const balancePollRef = import_react16.default.useRef(null);
+    const balancePollRef = import_react17.default.useRef(null);
     const sendPayment = Hooks_exports.token.useTransferSync();
-    const lastTxRef = import_react16.default.useRef(null);
-    const [createTxHash, setCreateTxHash] = import_react16.default.useState(null);
-    const [isCreatingInvoice, setIsCreatingInvoice] = import_react16.default.useState(false);
-    const [isRefreshingMobile, setIsRefreshingMobile] = import_react16.default.useState(false);
-    const [isRefreshingMerchant, setIsRefreshingMerchant] = import_react16.default.useState(false);
-    const [isAutopayEnabled, setIsAutopayEnabled] = import_react16.default.useState(false);
-    const [transactions, setTransactions] = import_react16.default.useState([]);
-    const signupRequestedRef = import_react16.default.useRef(false);
-    const refreshBalanceAfterFaucet = import_react16.default.useCallback(() => {
+    const lastTxRef = import_react17.default.useRef(null);
+    const [createTxHash, setCreateTxHash] = import_react17.default.useState(null);
+    const [isCreatingInvoice, setIsCreatingInvoice] = import_react17.default.useState(false);
+    const [isRefreshingMobile, setIsRefreshingMobile] = import_react17.default.useState(false);
+    const [isRefreshingMerchant, setIsRefreshingMerchant] = import_react17.default.useState(false);
+    const [isAutopayEnabled, setIsAutopayEnabled] = import_react17.default.useState(false);
+    const [isAutopayBusy, setIsAutopayBusy] = import_react17.default.useState(false);
+    const [transactions, setTransactions] = import_react17.default.useState([]);
+    const signupRequestedRef = import_react17.default.useRef(false);
+    const refreshBalanceAfterFaucet = import_react17.default.useCallback(() => {
       const startingBalance = balanceQuery.data ?? 0n;
       const maxAttempts = 20;
       const delayMs = 2e3;
@@ -51692,7 +56120,7 @@ Provided: ${stringify2(envelope)}`);
       };
       void poll2();
     }, [balanceQuery]);
-    import_react16.default.useEffect(() => {
+    import_react17.default.useEffect(() => {
       return () => {
         if (balancePollRef.current) {
           window.clearTimeout(balancePollRef.current);
@@ -51702,9 +56130,13 @@ Provided: ${stringify2(envelope)}`);
           window.clearTimeout(fundingTimerRef.current);
           fundingTimerRef.current = null;
         }
+        if (autopayTimerRef.current) {
+          window.clearTimeout(autopayTimerRef.current);
+          autopayTimerRef.current = null;
+        }
       };
     }, []);
-    const handleCopyId = import_react16.default.useCallback((id) => {
+    const handleCopyId = import_react17.default.useCallback((id) => {
       navigator.clipboard?.writeText(id);
       setCopiedId(id);
       if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
@@ -51713,13 +56145,13 @@ Provided: ${stringify2(envelope)}`);
         copyTimerRef.current = null;
       }, 1400);
     }, []);
-    import_react16.default.useEffect(() => {
+    import_react17.default.useEffect(() => {
       return () => {
         if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
         if (paymentTimerRef.current) window.clearTimeout(paymentTimerRef.current);
       };
     }, []);
-    const handlePaymentSuccess = import_react16.default.useCallback((txHash) => {
+    const handlePaymentSuccess = import_react17.default.useCallback((txHash) => {
       setPaymentNotice(txHash);
       balanceQuery.refetch();
       if (paymentTimerRef.current) window.clearTimeout(paymentTimerRef.current);
@@ -51728,7 +56160,7 @@ Provided: ${stringify2(envelope)}`);
         paymentTimerRef.current = null;
       }, 6e3);
     }, [balanceQuery]);
-    const handlePayInvoice = import_react16.default.useCallback((inv) => {
+    const handlePayInvoice = import_react17.default.useCallback((inv) => {
       if (!merchantAddress) return;
       sendPayment.mutate({
         amount: inv.amount,
@@ -51738,6 +56170,69 @@ Provided: ${stringify2(envelope)}`);
         memo: inv.invoiceId
       });
     }, [alphaUsdToken, merchantAddress, sendPayment]);
+    const handleAutopayToggle = import_react17.default.useCallback(async (enabled) => {
+      if (!account.address || !walletClient.data || !publicClient) {
+        setAutopayNotice({
+          kind: "error",
+          message: "Wallet not ready. Please sign in again."
+        });
+        return;
+      }
+      setIsAutopayBusy(true);
+      setIsAutopayEnabled(enabled);
+      setAutopayNotice({ kind: "success", message: "Requesting passkey\u2026" });
+      try {
+        const keyStorageKey = `autopay:${account.address.toLowerCase()}`;
+        if (enabled) {
+          const keyPair = await WebCryptoP256_exports2.createKeyPair();
+          const keyId = Address_exports.fromPublicKey(keyPair.publicKey);
+          const expirySeconds = BigInt(Math.floor(Date.now() / 1e3) + 7 * 24 * 60 * 60);
+          const txHash = await walletClient.data.writeContract({
+            address: accountKeychainAddress,
+            abi: Abis_exports.accountKeychain,
+            functionName: "authorizeKey",
+            args: [keyId, accessKeySignatureType, expirySeconds, false, []],
+            feeToken: alphaUsdToken
+          });
+          await publicClient.waitForTransactionReceipt({ hash: txHash });
+          const stored = {
+            keyPair,
+            keyId,
+            expiry: expirySeconds
+          };
+          await set(keyStorageKey, stored, accessKeyStore);
+          setAutopayNotice({ kind: "success", message: "Autopay enabled." });
+        } else {
+          const stored = await get(keyStorageKey, accessKeyStore);
+          if (stored?.keyId) {
+            const txHash = await walletClient.data.writeContract({
+              address: accountKeychainAddress,
+              abi: Abis_exports.accountKeychain,
+              functionName: "revokeKey",
+              args: [stored.keyId],
+              feeToken: alphaUsdToken
+            });
+            await publicClient.waitForTransactionReceipt({ hash: txHash });
+            await del(keyStorageKey, accessKeyStore);
+          }
+          setAutopayNotice({ kind: "success", message: "Autopay disabled." });
+        }
+      } catch (error) {
+        console.error("Autopay toggle failed", error);
+        setIsAutopayEnabled(!enabled);
+        setAutopayNotice({
+          kind: "error",
+          message: "Autopay action failed. Check the console for details."
+        });
+      } finally {
+        setIsAutopayBusy(false);
+        if (autopayTimerRef.current) window.clearTimeout(autopayTimerRef.current);
+        autopayTimerRef.current = window.setTimeout(() => {
+          setAutopayNotice(null);
+          autopayTimerRef.current = null;
+        }, 3e3);
+      }
+    }, [account.address, alphaUsdToken, publicClient, walletClient.data]);
     const invoiceNumbersQuery = useReadContract({
       address: invoiceRegistryAddress,
       abi: invoiceRegistryAbi,
@@ -51756,7 +56251,7 @@ Provided: ${stringify2(envelope)}`);
       contracts: invoiceContracts,
       query: { enabled: invoiceContracts.length > 0 }
     });
-    const refreshTransactions = import_react16.default.useCallback(async () => {
+    const refreshTransactions = import_react17.default.useCallback(async () => {
       if (!account.address) return;
       const response = await fetch(`/api/transactions?address=${account.address}`);
       const data = await response.json();
@@ -51775,7 +56270,7 @@ Provided: ${stringify2(envelope)}`);
       });
       setTransactions(next);
     }, [account.address]);
-    const refreshMobileInvoices = import_react16.default.useCallback(async () => {
+    const refreshMobileInvoices = import_react17.default.useCallback(async () => {
       if (!account.address) return;
       setIsRefreshingMobile(true);
       try {
@@ -51788,7 +56283,7 @@ Provided: ${stringify2(envelope)}`);
         window.setTimeout(() => setIsRefreshingMobile(false), 400);
       }
     }, [account.address, invoiceNumbersQuery, invoicesQuery, refreshTransactions]);
-    const refreshMerchantInvoices = import_react16.default.useCallback(async () => {
+    const refreshMerchantInvoices = import_react17.default.useCallback(async () => {
       setIsRefreshingMerchant(true);
       try {
         await fetch("/api/invoices/refresh-status");
@@ -51797,14 +56292,14 @@ Provided: ${stringify2(envelope)}`);
       }
       await refreshMobileInvoices();
     }, [refreshMobileInvoices]);
-    import_react16.default.useEffect(() => {
+    import_react17.default.useEffect(() => {
       if (!account.address) {
         setTransactions([]);
         return;
       }
       refreshTransactions();
     }, [account.address, refreshTransactions]);
-    import_react16.default.useEffect(() => {
+    import_react17.default.useEffect(() => {
       const tx = sendPayment.data?.receipt?.transactionHash;
       if (tx && tx !== lastTxRef.current) {
         lastTxRef.current = tx;
@@ -51820,7 +56315,7 @@ Provided: ${stringify2(envelope)}`);
       refreshMobileInvoices,
       sendPayment.data?.receipt?.transactionHash
     ]);
-    const onchainInvoices = import_react16.default.useMemo(() => {
+    const onchainInvoices = import_react17.default.useMemo(() => {
       return (invoicesQuery.data ?? []).flatMap((entry) => {
         if (entry.status !== "success" || !entry.result) return [];
         const result = entry.result;
@@ -51828,14 +56323,14 @@ Provided: ${stringify2(envelope)}`);
         return [{ number, invoiceId, payee, currency, amount, dueDate, status, paidTxHash }];
       }).sort((a, b) => Number(a.number - b.number));
     }, [invoicesQuery.data]);
-    const openInvoices = import_react16.default.useMemo(() => {
+    const openInvoices = import_react17.default.useMemo(() => {
       return onchainInvoices.filter((inv) => inv.status === 0);
     }, [onchainInvoices]);
     const createReceipt = useWaitForTransactionReceipt({
       hash: createTxHash ?? void 0,
       query: { enabled: Boolean(createTxHash) }
     });
-    import_react16.default.useEffect(() => {
+    import_react17.default.useEffect(() => {
       if (createReceipt.isSuccess) {
         window.setTimeout(() => {
           refreshMerchantInvoices();
@@ -51843,12 +56338,12 @@ Provided: ${stringify2(envelope)}`);
         }, 600);
       }
     }, [createReceipt.isSuccess, refreshMerchantInvoices, refreshMobileInvoices]);
-    import_react16.default.useEffect(() => {
+    import_react17.default.useEffect(() => {
       if (createReceipt.isSuccess) {
         setCreateTxHash(null);
       }
     }, [createReceipt.isSuccess]);
-    const handleGenerateInvoice = import_react16.default.useCallback(async () => {
+    const handleGenerateInvoice = import_react17.default.useCallback(async () => {
       if (!account.address) return;
       setIsCreatingInvoice(true);
       try {
@@ -51866,24 +56361,32 @@ Provided: ${stringify2(envelope)}`);
         setIsCreatingInvoice(false);
       }
     }, [account.address]);
-    import_react16.default.useEffect(() => {
+    import_react17.default.useEffect(() => {
       getConfig().then((c) => {
         setMerchantAddress(c.merchantAddress);
         setInvoiceRegistryAddress(c.invoiceRegistryAddress);
       }).catch(console.error);
     }, []);
-    import_react16.default.useEffect(() => {
+    import_react17.default.useEffect(() => {
+      if (!account.address) {
+        setIsAutopayEnabled(false);
+        return;
+      }
+      get(`autopay:${account.address.toLowerCase()}`, accessKeyStore).then((stored) => setIsAutopayEnabled(Boolean(stored))).catch(() => setIsAutopayEnabled(false));
+    }, [account.address]);
+    import_react17.default.useEffect(() => {
+      autopayDebugRef.current = handleAutopayToggle;
+      return () => {
+        autopayDebugRef.current = null;
+      };
+    }, [handleAutopayToggle]);
+    import_react17.default.useEffect(() => {
       if (!account.address || !signupRequestedRef.current) return;
       signupRequestedRef.current = false;
-      fetch("https://rpc.testnet.tempo.xyz", {
+      fetch("/api/faucet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "tempo_fundAddress",
-          params: [account.address]
-        })
+        body: JSON.stringify({ address: account.address })
       }).then((res) => res.json()).then((data) => {
         if (data?.error) throw new Error(data.error?.message ?? "Faucet request failed");
         refreshBalanceAfterFaucet();
@@ -51903,13 +56406,13 @@ Provided: ${stringify2(envelope)}`);
         }, 3e3);
       });
     }, [account.address, refreshBalanceAfterFaucet]);
-    const formattedBalance = import_react16.default.useMemo(() => {
+    const formattedBalance = import_react17.default.useMemo(() => {
       const raw = Number(formatUnits(balanceQuery.data ?? 0n, 6));
       return Number.isFinite(raw) ? Math.round(raw).toLocaleString("en-US") : "0";
     }, [balanceQuery.data]);
     return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wrap", children: [
       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "pane", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "phone-shell", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "phone-screen", children: [
-        paymentNotice || fundingNotice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "notice-stack", children: [
+        paymentNotice || fundingNotice || autopayNotice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "notice-stack", children: [
           paymentNotice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "notice", children: [
             "Payment sent:",
             " ",
@@ -51926,7 +56429,8 @@ Provided: ${stringify2(envelope)}`);
               }
             )
           ] }) : null,
-          fundingNotice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: fundingNotice.kind === "error" ? "notice notice-error" : "notice", children: fundingNotice.message }) : null
+          fundingNotice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: fundingNotice.kind === "error" ? "notice notice-error" : "notice", children: fundingNotice.message }) : null,
+          autopayNotice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: autopayNotice.kind === "error" ? "notice notice-error" : "notice", children: autopayNotice.message }) : null
         ] }) : null,
         !account.address ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "auth-screen", children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(TouchIdIcon, {}),
@@ -51936,6 +56440,7 @@ Provided: ${stringify2(envelope)}`);
               {
                 className: "btn btn-primary",
                 onClick: () => {
+                  setIsAutopayEnabled(false);
                   signupRequestedRef.current = false;
                   connect2.connect({ connector });
                 },
@@ -52038,7 +56543,11 @@ Provided: ${stringify2(envelope)}`);
                     {
                       type: "checkbox",
                       checked: isAutopayEnabled,
-                      onChange: (event) => setIsAutopayEnabled(event.target.checked)
+                      disabled: isAutopayBusy,
+                      onChange: (event) => {
+                        if (isAutopayBusy) return;
+                        handleAutopayToggle(event.target.checked);
+                      }
                     }
                   ),
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "toggle-slider", "aria-hidden": "true" })
@@ -52379,8 +56888,14 @@ Provided: ${stringify2(envelope)}`);
   var import_jsx_runtime4 = __toESM(require_jsx_runtime(), 1);
   var qc = new QueryClient();
   (0, import_client.createRoot)(document.getElementById("root")).render(
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react17.default.StrictMode, { children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(WagmiProvider, { config: wagmiConfig, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(QueryClientProvider, { client: qc, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(App, {}) }) }) })
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react18.default.StrictMode, { children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(WagmiProvider, { config: wagmiConfig, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(QueryClientProvider, { client: qc, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(App, {}) }) }) })
   );
+  if (typeof window !== "undefined") {
+    ;
+    window.__debugAutopayToggle = (enabled) => {
+      return autopayDebugRef.current?.(enabled);
+    };
+  }
 })();
 /*! Bundled license information:
 

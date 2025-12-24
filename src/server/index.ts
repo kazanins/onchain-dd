@@ -136,7 +136,7 @@ const transferWithMemoEvent = {
   ],
 } as const
 
-const LOOKBACK_BLOCKS = 5000n
+const LOOKBACK_BLOCKS = 20000n
 
 app.post('/api/invoices/create', async (req, res) => {
   try {
@@ -305,6 +305,32 @@ app.get('/api/invoices/refresh-status', async (_req, res) => {
     res.json({ marked })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Cron failed'
+    res.status(500).json({ error: message })
+  }
+})
+
+app.post('/api/faucet', async (req, res) => {
+  try {
+    const address = req.body?.address as `0x${string}` | undefined
+    if (!address) return res.status(400).json({ error: 'Missing address' })
+
+    const response = await fetch('https://rpc.testnet.tempo.xyz', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tempo_fundAddress',
+        params: [address],
+      }),
+    })
+    const data = await response.json()
+    if (!response.ok || data?.error) {
+      return res.status(500).json({ error: data?.error?.message ?? 'Faucet request failed' })
+    }
+    res.json({ ok: true })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Faucet request failed'
     res.status(500).json({ error: message })
   }
 })
