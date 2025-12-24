@@ -211,7 +211,7 @@ export function App() {
           functionName: 'authorizeKey',
           args: [keyId, accessKeySignatureType, expirySeconds, false, []],
           feeToken: alphaUsdToken,
-        })
+        } as never)
         await publicClient.waitForTransactionReceipt({ hash: txHash })
 
         const stored: StoredAccessKey = {
@@ -230,7 +230,7 @@ export function App() {
             functionName: 'revokeKey',
             args: [stored.keyId],
             feeToken: alphaUsdToken,
-          })
+          } as never)
           await publicClient.waitForTransactionReceipt({ hash: txHash })
           await del(keyStorageKey, accessKeyStore)
         }
@@ -499,7 +499,7 @@ export function App() {
       return
     }
     get<StoredAccessKey>(`autopay:${account.address.toLowerCase()}`, accessKeyStore)
-      .then((stored) => setIsAutopayEnabled(Boolean(stored)))
+      .then((stored: StoredAccessKey | null) => setIsAutopayEnabled(Boolean(stored)))
       .catch(() => setIsAutopayEnabled(false))
   }, [account.address])
   React.useEffect(() => {
