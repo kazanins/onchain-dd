@@ -56583,6 +56583,7 @@ Provided: ${stringify2(envelope)}`);
     const autopayScheduleTimerRef = import_react17.default.useRef(null);
     const nextInvoiceNumberRef = import_react17.default.useRef(null);
     const [isAwaitingInvoice, setIsAwaitingInvoice] = import_react17.default.useState(false);
+    const [processingInvoices, setProcessingInvoices] = import_react17.default.useState(/* @__PURE__ */ new Set());
     const refreshBalanceAfterFaucet = import_react17.default.useCallback(() => {
       const startingBalance = balanceQuery.data ?? 0n;
       const maxAttempts = 20;
@@ -56650,6 +56651,11 @@ Provided: ${stringify2(envelope)}`);
     }, [balanceQuery]);
     const handlePayInvoice = import_react17.default.useCallback((inv) => {
       if (!merchantAddress) return;
+      setProcessingInvoices((prev) => {
+        const next = new Set(prev);
+        next.add(String(inv.number));
+        return next;
+      });
       sendPayment.mutate({
         amount: inv.amount,
         to: merchantAddress,
@@ -56782,6 +56788,11 @@ Provided: ${stringify2(envelope)}`);
     }, [refreshMobileInvoices]);
     const runAutopay = import_react17.default.useCallback(async (inv) => {
       if (!account.address || !merchantAddress) return;
+      setProcessingInvoices((prev) => {
+        const next = new Set(prev);
+        next.add(String(inv.number));
+        return next;
+      });
       const keyStorageKey = `autopay:${account.address.toLowerCase()}`;
       const stored = await get(keyStorageKey, accessKeyStore);
       if (!stored) {
@@ -56790,6 +56801,11 @@ Provided: ${stringify2(envelope)}`);
           message: "Autopay key missing. Toggle Autopay again."
         });
         setIsAutopayEnabled(false);
+        setProcessingInvoices((prev) => {
+          const next = new Set(prev);
+          next.delete(String(inv.number));
+          return next;
+        });
         return;
       }
       const accessAccount = Account_exports.fromWebCryptoP256(stored.keyPair, { access: account.address });
@@ -56821,15 +56837,16 @@ Provided: ${stringify2(envelope)}`);
       if (tx && tx !== lastTxRef.current) {
         lastTxRef.current = tx;
         handlePaymentSuccess(String(tx));
-        window.setTimeout(() => {
-          refreshMerchantInvoices();
-          refreshMobileInvoices();
-        }, 800);
+        void (async () => {
+          await refreshMerchantInvoices();
+          window.setTimeout(() => {
+            refreshMerchantInvoices();
+          }, 1200);
+        })();
       }
     }, [
       handlePaymentSuccess,
       refreshMerchantInvoices,
-      refreshMobileInvoices,
       sendPayment.data?.receipt?.transactionHash
     ]);
     const onchainInvoices = import_react17.default.useMemo(() => {
@@ -56842,6 +56859,16 @@ Provided: ${stringify2(envelope)}`);
     }, [invoicesQuery.data]);
     const openInvoices = import_react17.default.useMemo(() => {
       return onchainInvoices.filter((inv) => inv.status === 0);
+    }, [onchainInvoices]);
+    import_react17.default.useEffect(() => {
+      setProcessingInvoices((prev) => {
+        if (prev.size === 0) return prev;
+        const next = new Set(prev);
+        onchainInvoices.forEach((inv) => {
+          if (inv.status !== 0) next.delete(String(inv.number));
+        });
+        return next;
+      });
     }, [onchainInvoices]);
     import_react17.default.useEffect(() => {
       if (!isAutopayEnabled && autopayScheduleTimerRef.current) {
@@ -56866,6 +56893,11 @@ Provided: ${stringify2(envelope)}`);
         runAutopay(pending).catch((error) => {
           console.error("Autopay failed", error);
           setAutopayNotice({ kind: "error", message: "Autopay failed." });
+          setProcessingInvoices((prev) => {
+            const next = new Set(prev);
+            next.delete(String(pending.number));
+            return next;
+          });
         }).finally(() => {
           autopayInFlightRef.current.delete(String(pending.number));
           autopayScheduleTimerRef.current = null;
@@ -57071,36 +57103,7 @@ Provided: ${stringify2(envelope)}`);
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "phone-card", children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "row", style: { justifyContent: "space-between" }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "row", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Invoices" }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-                  "button",
-                  {
-                    className: `refresh-button ${isRefreshingMobile ? "spin" : ""}`,
-                    onClick: refreshMobileInvoices,
-                    "aria-label": "Refresh invoices",
-                    title: "Refresh invoices",
-                    children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-                      "svg",
-                      {
-                        width: "14",
-                        height: "14",
-                        viewBox: "0 0 24 24",
-                        fill: "none",
-                        stroke: "currentColor",
-                        strokeWidth: "2",
-                        strokeLinecap: "round",
-                        strokeLinejoin: "round",
-                        "aria-hidden": "true",
-                        children: [
-                          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M21 12a9 9 0 1 1-3-6.7" }),
-                          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M21 3v6h-6" })
-                        ]
-                      }
-                    )
-                  }
-                )
-              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "row", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Invoices" }) }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "invoice-header-actions", children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("label", { className: "toggle", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Autopay" }),
@@ -57121,50 +57124,70 @@ Provided: ${stringify2(envelope)}`);
                 sendPayment.isPending ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "muted", children: "Paying\u2026" }) : null
               ] })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { marginTop: 8, display: "grid", gap: 10 }, children: openInvoices.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "muted", children: "No open invoices." }) : openInvoices.map((inv) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "invoice-item", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "invoice-title", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { children: [
-                    "Invoice ",
-                    inv.number.toString()
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { marginTop: 8, display: "grid", gap: 10 }, children: openInvoices.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "muted", children: "No open invoices." }) : openInvoices.map((inv) => {
+              const isProcessing = processingInvoices.has(String(inv.number));
+              return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "invoice-item", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "invoice-title", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { children: [
+                      "Invoice ",
+                      inv.number.toString()
+                    ] }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "muted", children: [
+                      "$",
+                      formatInvoiceAmount(inv.amount)
+                    ] })
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "muted", children: [
-                    "$",
-                    formatInvoiceAmount(inv.amount)
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "muted", children: [
+                    "ID: ",
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("code", { children: decodeInvoiceId(inv.invoiceId) })
                   ] })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "muted", children: [
-                  "ID: ",
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("code", { children: decodeInvoiceId(inv.invoiceId) })
-                ] })
-              ] }),
-              isAutopayEnabled ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "scheduled-pill", "aria-label": "Scheduled", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-                "svg",
-                {
-                  width: "16",
-                  height: "16",
-                  viewBox: "0 0 24 24",
-                  fill: "none",
-                  stroke: "currentColor",
-                  strokeWidth: "2",
-                  strokeLinecap: "round",
-                  strokeLinejoin: "round",
-                  "aria-hidden": "true",
-                  children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("circle", { cx: "12", cy: "12", r: "9" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M12 7v5l3 3" })
-                  ]
-                }
-              ) }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-                "button",
-                {
-                  className: "btn btn-primary",
-                  disabled: sendPayment.isPending,
-                  onClick: () => handlePayInvoice(inv),
-                  children: "Pay"
-                }
-              )
-            ] }, String(inv.number))) })
+                isProcessing ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "processing-spinner spin", "aria-label": "Processing payment", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+                  "svg",
+                  {
+                    width: "16",
+                    height: "16",
+                    viewBox: "0 0 24 24",
+                    fill: "none",
+                    stroke: "currentColor",
+                    strokeWidth: "2",
+                    strokeLinecap: "round",
+                    strokeLinejoin: "round",
+                    "aria-hidden": "true",
+                    children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M21 12a9 9 0 1 1-3-6.7" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M21 3v6h-6" })
+                    ]
+                  }
+                ) }) : isAutopayEnabled ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "scheduled-pill", "aria-label": "Scheduled", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+                  "svg",
+                  {
+                    width: "16",
+                    height: "16",
+                    viewBox: "0 0 24 24",
+                    fill: "none",
+                    stroke: "currentColor",
+                    strokeWidth: "2",
+                    strokeLinecap: "round",
+                    strokeLinejoin: "round",
+                    "aria-hidden": "true",
+                    children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("circle", { cx: "12", cy: "12", r: "9" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M12 7v5l3 3" })
+                    ]
+                  }
+                ) }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                  "button",
+                  {
+                    className: "btn btn-primary",
+                    disabled: sendPayment.isPending || isProcessing,
+                    onClick: () => handlePayInvoice(inv),
+                    children: "Pay"
+                  }
+                )
+              ] }, String(inv.number));
+            }) })
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "phone-card", children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "row", style: { justifyContent: "space-between" }, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Transactions" }) }),
@@ -57254,36 +57277,7 @@ Provided: ${stringify2(envelope)}`);
           ) }) : null
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "card", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "row", style: { justifyContent: "space-between" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "row", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Invoices" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-              "button",
-              {
-                className: `refresh-button ${isRefreshingMerchant ? "spin" : ""}`,
-                onClick: refreshMerchantInvoices,
-                "aria-label": "Refresh invoice status",
-                title: "Refresh invoice status",
-                children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-                  "svg",
-                  {
-                    width: "14",
-                    height: "14",
-                    viewBox: "0 0 24 24",
-                    fill: "none",
-                    stroke: "currentColor",
-                    strokeWidth: "2",
-                    strokeLinecap: "round",
-                    strokeLinejoin: "round",
-                    "aria-hidden": "true",
-                    children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M21 12a9 9 0 1 1-3-6.7" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M21 3v6h-6" })
-                    ]
-                  }
-                )
-              }
-            )
-          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "row", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Invoices" }) }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
             "button",
             {

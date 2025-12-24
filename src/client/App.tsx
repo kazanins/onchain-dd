@@ -104,6 +104,7 @@ export function App() {
   const autopayScheduleTimerRef = React.useRef<number | null>(null)
   const nextInvoiceNumberRef = React.useRef<bigint | null>(null)
   const [isAwaitingInvoice, setIsAwaitingInvoice] = React.useState(false)
+  const [processingInvoices, setProcessingInvoices] = React.useState<Set<string>>(new Set())
 
   const refreshBalanceAfterFaucet = React.useCallback(() => {
     const startingBalance = balanceQuery.data ?? 0n
@@ -180,6 +181,11 @@ export function App() {
 
   const handlePayInvoice = React.useCallback((inv: OnchainInvoice) => {
     if (!merchantAddress) return
+    setProcessingInvoices((prev) => {
+      const next = new Set(prev)
+      next.add(String(inv.number))
+      return next
+    })
     sendPayment.mutate({
       amount: inv.amount,
       to: merchantAddress,
@@ -330,6 +336,11 @@ export function App() {
 
   const runAutopay = React.useCallback(async (inv: OnchainInvoice) => {
     if (!account.address || !merchantAddress) return
+    setProcessingInvoices((prev) => {
+      const next = new Set(prev)
+      next.add(String(inv.number))
+      return next
+    })
     const keyStorageKey = `autopay:${account.address.toLowerCase()}`
     const stored = await get<StoredAccessKey>(keyStorageKey, accessKeyStore)
     if (!stored) {
@@ -338,6 +349,11 @@ export function App() {
         message: 'Autopay key missing. Toggle Autopay again.',
       })
       setIsAutopayEnabled(false)
+      setProcessingInvoices((prev) => {
+        const next = new Set(prev)
+        next.delete(String(inv.number))
+        return next
+      })
       return
     }
 
@@ -374,15 +390,16 @@ export function App() {
     if (tx && tx !== lastTxRef.current) {
       lastTxRef.current = tx
       handlePaymentSuccess(String(tx))
-      window.setTimeout(() => {
-        refreshMerchantInvoices()
-        refreshMobileInvoices()
-      }, 800)
+      void (async () => {
+        await refreshMerchantInvoices()
+        window.setTimeout(() => {
+          refreshMerchantInvoices()
+        }, 1200)
+      })()
     }
   }, [
     handlePaymentSuccess,
     refreshMerchantInvoices,
-    refreshMobileInvoices,
     sendPayment.data?.receipt?.transactionHash,
   ])
 
@@ -408,6 +425,17 @@ export function App() {
 
   const openInvoices = React.useMemo(() => {
     return onchainInvoices.filter((inv) => inv.status === 0)
+  }, [onchainInvoices])
+
+  React.useEffect(() => {
+    setProcessingInvoices((prev) => {
+      if (prev.size === 0) return prev
+      const next = new Set(prev)
+      onchainInvoices.forEach((inv) => {
+        if (inv.status !== 0) next.delete(String(inv.number))
+      })
+      return next
+    })
   }, [onchainInvoices])
 
   React.useEffect(() => {
@@ -437,6 +465,11 @@ export function App() {
         .catch((error) => {
           console.error('Autopay failed', error)
           setAutopayNotice({ kind: 'error', message: 'Autopay failed.' })
+          setProcessingInvoices((prev) => {
+            const next = new Set(prev)
+            next.delete(String(pending.number))
+            return next
+          })
         })
         .finally(() => {
           autopayInFlightRef.current.delete(String(pending.number))
@@ -670,27 +703,6 @@ export function App() {
                 <div className="row" style={{ justifyContent: 'space-between' }}>
                   <div className="row">
                     <b>Invoices</b>
-                    <button
-                      className={`refresh-button ${isRefreshingMobile ? 'spin' : ''}`}
-                      onClick={refreshMobileInvoices}
-                      aria-label="Refresh invoices"
-                      title="Refresh invoices"
-                    >
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        aria-hidden="true"
-                      >
-                        <path d="M21 12a9 9 0 1 1-3-6.7" />
-                        <path d="M21 3v6h-6" />
-                      </svg>
-                    </button>
                   </div>
                   <div className="invoice-header-actions">
                     <label className="toggle">
@@ -713,7 +725,9 @@ export function App() {
                   {openInvoices.length === 0 ? (
                     <div className="muted">No open invoices.</div>
                   ) : (
-                    openInvoices.map((inv) => (
+                    openInvoices.map((inv) => {
+                      const isProcessing = processingInvoices.has(String(inv.number))
+                      return (
                       <div key={String(inv.number)} className="invoice-item">
                         <div>
                           <div className="invoice-title">
@@ -722,7 +736,24 @@ export function App() {
                           </div>
                           <div className="muted">ID: <code>{decodeInvoiceId(inv.invoiceId)}</code></div>
                         </div>
-                        {isAutopayEnabled ? (
+                        {isProcessing ? (
+                          <div className="processing-spinner spin" aria-label="Processing payment">
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              <path d="M21 12a9 9 0 1 1-3-6.7" />
+                              <path d="M21 3v6h-6" />
+                            </svg>
+                          </div>
+                        ) : isAutopayEnabled ? (
                           <div className="scheduled-pill" aria-label="Scheduled">
                             <svg
                               width="16"
@@ -742,14 +773,14 @@ export function App() {
                         ) : (
                           <button
                             className="btn btn-primary"
-                            disabled={sendPayment.isPending}
+                            disabled={sendPayment.isPending || isProcessing}
                             onClick={() => handlePayInvoice(inv)}
                           >
                             Pay
                           </button>
                         )}
                       </div>
-                    ))
+                    )})
                   )}
                 </div>
               </div>
@@ -852,34 +883,13 @@ export function App() {
         </div>
 
         <div className="card">
-          <div className="row" style={{ justifyContent: 'space-between' }}>
-            <div className="row">
-              <b>Invoices</b>
+            <div className="row" style={{ justifyContent: 'space-between' }}>
+              <div className="row">
+                <b>Invoices</b>
+              </div>
               <button
-                className={`refresh-button ${isRefreshingMerchant ? 'spin' : ''}`}
-                onClick={refreshMerchantInvoices}
-                aria-label="Refresh invoice status"
-                title="Refresh invoice status"
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M21 12a9 9 0 1 1-3-6.7" />
-                  <path d="M21 3v6h-6" />
-                </svg>
-              </button>
-            </div>
-            <button
-              className="btn btn-outline"
-              disabled={!account.address || isCreatingInvoice || isAwaitingInvoice || !invoiceRegistryAddress}
+                className="btn btn-outline"
+                disabled={!account.address || isCreatingInvoice || isAwaitingInvoice || !invoiceRegistryAddress}
               onClick={handleGenerateInvoice}
             >
               {isCreatingInvoice || isAwaitingInvoice ? 'Generating…' : 'Generate invoice'}
