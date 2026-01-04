@@ -390,51 +390,17 @@ app.get('/api/events', (req, res) => {
   req.on('close', () => removeClient(id))
 })
 
+// Health check for Railway
+app.get('/health', (_req, res) => {
+  res.json({ status: 'healthy' })
+})
+
 // SPA fallback (Express 5 + path-to-regexp v8 prefers regex over bare '*')
 app.get(/.*/, (_req, res) => {
   res.sendFile(path.join(__dirname, '../../public/index.html'))
 })
 
-// --- Chain listener: TIP-20 TransferWithMemo -> mark invoice Paid
-function startInvoiceWatcher() {
-  const merchant = merchantAddress
-  if (!merchant) return
-  return client.watchEvent({
-    address: ALPHA_USD,
-    event: {
-      type: 'event',
-      name: 'TransferWithMemo',
-      inputs: [
-        { name: 'from', type: 'address', indexed: true },
-        { name: 'to', type: 'address', indexed: true },
-        { name: 'value', type: 'uint256' },
-        { name: 'memo', type: 'bytes32', indexed: true },
-      ],
-    },
-    onLogs: (logs) => {
-      for (const log of logs) {
-        // Only consider payments to our merchant address
-        if ((log.args.to as string)?.toLowerCase() !== merchant.toLowerCase()) continue
-
-        const memo = log.args.memo as `0x${string}`
-        const inv = invoiceByMemoHex(memo)
-        if (!inv) continue
-        if (inv.status === 'Paid') continue
-
-        inv.status = 'Paid'
-        inv.paidTxHash = log.transactionHash as `0x${string}`
-        inv.paidFrom = log.args.from as `0x${string}`
-        inv.paidAmount = String(log.args.value)
-
-        broadcast('invoicePaid', { invoice: inv })
-        broadcast('invoices', { invoices })
-      }
-    },
-  })
-}
-
 app.listen(port, () => {
   console.log(`http://localhost:${port}`)
   console.log(`Merchant receive address: ${merchantAddress}`)
-  startInvoiceWatcher()
 })
