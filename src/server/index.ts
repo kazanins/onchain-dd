@@ -314,19 +314,20 @@ app.post('/api/faucet', async (req, res) => {
     const address = req.body?.address as `0x${string}` | undefined
     if (!address) return res.status(400).json({ error: 'Missing address' })
 
-    const response = await fetch('https://rpc.testnet.tempo.xyz', {
+    const response = await fetch('https://tiny-faucet.up.railway.app/api/fund', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'tempo_fundAddress',
-        params: [address],
+        address,
+        token: 'AlphaUSD',
+        amount: 5000,
       }),
     })
     const data = await response.json()
     if (!response.ok || data?.error) {
-      return res.status(500).json({ error: data?.error?.message ?? 'Faucet request failed' })
+      const errorMessage =
+        typeof data?.error === 'string' ? data.error : data?.error?.message
+      return res.status(500).json({ error: errorMessage ?? 'Faucet request failed' })
     }
     res.json({ ok: true })
   } catch (error) {
