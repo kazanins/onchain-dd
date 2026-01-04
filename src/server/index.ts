@@ -464,7 +464,7 @@ app.get('/api/transactions', async (req, res) => {
       for (const log of memoLogs) {
         const from = log.args?.from as `0x${string}` | undefined
         const to = log.args?.to as `0x${string}` | undefined
-        const amount = (log.args?.amount ?? log.args?.value) as bigint | undefined
+        const amount = log.args?.amount as bigint | undefined
         const memo = log.args?.memo as `0x${string}` | undefined
         if (!from || !to || amount === undefined) continue
         const key = `${log.transactionHash}:${log.logIndex ?? 0n}`
@@ -487,7 +487,7 @@ app.get('/api/transactions', async (req, res) => {
       for (const log of transferLogs) {
         const from = log.args?.from as `0x${string}` | undefined
         const to = log.args?.to as `0x${string}` | undefined
-        const amount = (log.args?.amount ?? log.args?.value) as bigint | undefined
+        const amount = log.args?.amount as bigint | undefined
         if (!from || !to || amount === undefined) continue
         if (from.toLowerCase() === ZERO_ADDRESS) continue
         const key = `${log.transactionHash}:${log.logIndex ?? 0n}`
@@ -509,7 +509,7 @@ app.get('/api/transactions', async (req, res) => {
 
       for (const log of mintLogs) {
         const to = log.args?.to as `0x${string}` | undefined
-        const amount = (log.args?.amount ?? log.args?.value) as bigint | undefined
+        const amount = log.args?.amount as bigint | undefined
         if (!to || amount === undefined) continue
         const key = `${log.transactionHash}:${log.logIndex ?? 0n}`
         if (memoKeySet.has(key)) continue
