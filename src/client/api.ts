@@ -5,5 +5,6 @@ export async function getConfig() {
     merchantAddress: `0x${string}`
     alphaUsd: `0x${string}`
     invoiceRegistryAddress: `0x${string}`
+    rpcUrl?: string
   }>
 }

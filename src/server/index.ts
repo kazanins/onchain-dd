@@ -59,6 +59,7 @@ app.get('/api/config', (_req, res) => {
     merchantAddress,
     alphaUsd: ALPHA_USD,
     invoiceRegistryAddress,
+    rpcUrl: process.env.TEMPO_RPC_URL ?? '',
   })
 })
 
@@ -131,12 +132,37 @@ const transferWithMemoEvent = {
   inputs: [
     { name: 'from', type: 'address', indexed: true },
     { name: 'to', type: 'address', indexed: true },
-    { name: 'value', type: 'uint256' },
+    { name: 'amount', type: 'uint256' },
     { name: 'memo', type: 'bytes32', indexed: true },
   ],
 } as const
 
-const LOOKBACK_BLOCKS = 20000n
+const transferEvent = {
+  type: 'event',
+  name: 'Transfer',
+  inputs: [
+    { name: 'from', type: 'address', indexed: true },
+    { name: 'to', type: 'address', indexed: true },
+    { name: 'amount', type: 'uint256' },
+  ],
+} as const
+
+const mintEvent = {
+  type: 'event',
+  name: 'Mint',
+  inputs: [
+    { name: 'to', type: 'address', indexed: true },
+    { name: 'amount', type: 'uint256' },
+  ],
+} as const
+
+const LOOKBACK_BLOCKS = 200000n
+const REFRESH_LOOKBACK_BLOCKS = 5000n
+const TRANSACTION_LOOKBACK_BLOCKS = 5000n
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
+const MAX_LOG_RANGE = 500n
+
+type LogResult = Awaited<ReturnType<typeof client.getLogs>>
 
 app.post('/api/invoices/create', async (req, res) => {
   try {
@@ -244,10 +270,17 @@ app.post('/api/invoices/mark-paid', async (req, res) => {
   }
 })
 
-app.get('/api/invoices/refresh-status', async (_req, res) => {
+app.get('/api/invoices/refresh-status', async (req, res) => {
   try {
     const latestBlock = await client.getBlockNumber()
-    const fromBlock = latestBlock > LOOKBACK_BLOCKS ? latestBlock - LOOKBACK_BLOCKS : 0n
+    const lookbackParam = req.query.lookback as string | undefined
+    const lookback =
+      lookbackParam && /^\d+$/.test(lookbackParam)
+        ? BigInt(lookbackParam)
+        : REFRESH_LOOKBACK_BLOCKS
+    const maxLookback = lookback > 0n ? lookback : REFRESH_LOOKBACK_BLOCKS
+    const cappedLookback = maxLookback > LOOKBACK_BLOCKS ? LOOKBACK_BLOCKS : maxLookback
+    const fromBlock = latestBlock > cappedLookback ? latestBlock - cappedLookback : 0n
 
     const logs = await client.getLogs({
       address: ALPHA_USD,
@@ -342,34 +375,207 @@ app.get('/api/transactions', async (req, res) => {
     if (!address) return res.status(400).json({ error: 'Missing address' })
 
     const latestBlock = await client.getBlockNumber()
-    const fromBlock = latestBlock > LOOKBACK_BLOCKS ? latestBlock - LOOKBACK_BLOCKS : 0n
+    const lookbackParam = req.query.lookback as string | undefined
+    const lookback =
+      lookbackParam && /^\d+$/.test(lookbackParam)
+        ? BigInt(lookbackParam)
+        : TRANSACTION_LOOKBACK_BLOCKS
+    const maxLookback = lookback > 0n ? lookback : TRANSACTION_LOOKBACK_BLOCKS
+    const cappedLookback = maxLookback > LOOKBACK_BLOCKS ? LOOKBACK_BLOCKS : maxLookback
+    const minBlock = latestBlock > cappedLookback ? latestBlock - cappedLookback : 0n
+    const memoKeySet = new Set<string>()
+    const memoLogByTx = new Map<string, {
+      from: `0x${string}`
+      to: `0x${string}`
+      memo: `0x${string}` | null
+      value: string
+      txHash: `0x${string}`
+      logIndex: string
+      blockNumber: bigint
+    }>()
+    const transferLogByTx = new Map<string, {
+      from: `0x${string}`
+      to: `0x${string}`
+      memo: `0x${string}` | null
+      value: string
+      txHash: `0x${string}`
+      logIndex: string
+      blockNumber: bigint
+    }>()
+    const mintLogByTx = new Map<string, {
+      from: `0x${string}`
+      to: `0x${string}`
+      memo: `0x${string}` | null
+      value: string
+      txHash: `0x${string}`
+      logIndex: string
+      blockNumber: bigint
+    }>()
 
-    const logs = await client.getLogs({
-      address: ALPHA_USD,
-      event: transferWithMemoEvent,
-      fromBlock,
-      toBlock: latestBlock,
-    })
+    let endBlock = latestBlock
+    while (endBlock >= minBlock) {
+      const startBlock = endBlock > MAX_LOG_RANGE ? endBlock - MAX_LOG_RANGE : 0n
+      const boundedStart = startBlock < minBlock ? minBlock : startBlock
+      const [memoChunk, transferChunk, mintLogs] = await Promise.all([
+        Promise.all([
+          client.getLogs({
+            address: ALPHA_USD,
+            event: transferWithMemoEvent,
+            args: { to: address },
+            fromBlock: boundedStart,
+            toBlock: endBlock,
+          }),
+          client.getLogs({
+            address: ALPHA_USD,
+            event: transferWithMemoEvent,
+            args: { from: address },
+            fromBlock: boundedStart,
+            toBlock: endBlock,
+          }),
+        ]),
+        Promise.all([
+          client.getLogs({
+            address: ALPHA_USD,
+            event: transferEvent,
+            args: { to: address },
+            fromBlock: boundedStart,
+            toBlock: endBlock,
+          }),
+          client.getLogs({
+            address: ALPHA_USD,
+            event: transferEvent,
+            args: { from: address },
+            fromBlock: boundedStart,
+            toBlock: endBlock,
+          }),
+        ]),
+        client.getLogs({
+          address: ALPHA_USD,
+          event: mintEvent,
+          args: { to: address },
+          fromBlock: boundedStart,
+          toBlock: endBlock,
+        }),
+      ])
 
-    const normalized = address.toLowerCase()
-    const transfers = logs
-      .filter((log) => {
+      const memoLogs = memoChunk.flat()
+      const transferLogs = transferChunk.flat()
+
+      for (const log of memoLogs) {
         const from = log.args?.from as `0x${string}` | undefined
         const to = log.args?.to as `0x${string}` | undefined
-        if (!from || !to) return false
-        return from.toLowerCase() === normalized || to.toLowerCase() === normalized
-      })
-      .sort((a, b) => Number((b.blockNumber ?? 0n) - (a.blockNumber ?? 0n)))
-      .slice(0, 3)
-      .map((log) => ({
-        from: log.args?.from as `0x${string}`,
-        to: log.args?.to as `0x${string}`,
-        memo: log.args?.memo as `0x${string}`,
-        value: (log.args?.value as bigint).toString(),
-        txHash: log.transactionHash as `0x${string}`,
-      }))
+        const amount = (log.args?.amount ?? log.args?.value) as bigint | undefined
+        const memo = log.args?.memo as `0x${string}` | undefined
+        if (!from || !to || amount === undefined) continue
+        const key = `${log.transactionHash}:${log.logIndex ?? 0n}`
+        if (memoKeySet.has(key)) continue
+        memoKeySet.add(key)
+        const txHash = String(log.transactionHash)
+        if (!memoLogByTx.has(txHash)) {
+          memoLogByTx.set(txHash, {
+            from,
+            to,
+            memo: memo ?? null,
+            value: amount.toString(),
+            txHash: log.transactionHash as `0x${string}`,
+            logIndex: String(log.logIndex ?? 0n),
+            blockNumber: log.blockNumber ?? 0n,
+          })
+        }
+      }
 
-    res.json({ transfers })
+      for (const log of transferLogs) {
+        const from = log.args?.from as `0x${string}` | undefined
+        const to = log.args?.to as `0x${string}` | undefined
+        const amount = (log.args?.amount ?? log.args?.value) as bigint | undefined
+        if (!from || !to || amount === undefined) continue
+        if (from.toLowerCase() === ZERO_ADDRESS) continue
+        const key = `${log.transactionHash}:${log.logIndex ?? 0n}`
+        if (memoKeySet.has(key)) continue
+        memoKeySet.add(key)
+        const txHash = String(log.transactionHash)
+        if (!transferLogByTx.has(txHash)) {
+          transferLogByTx.set(txHash, {
+            from,
+            to,
+            memo: null,
+            value: amount.toString(),
+            txHash: log.transactionHash as `0x${string}`,
+            logIndex: String(log.logIndex ?? 0n),
+            blockNumber: log.blockNumber ?? 0n,
+          })
+        }
+      }
+
+      for (const log of mintLogs) {
+        const to = log.args?.to as `0x${string}` | undefined
+        const amount = (log.args?.amount ?? log.args?.value) as bigint | undefined
+        if (!to || amount === undefined) continue
+        const key = `${log.transactionHash}:${log.logIndex ?? 0n}`
+        if (memoKeySet.has(key)) continue
+        memoKeySet.add(key)
+        const txHash = String(log.transactionHash)
+        if (!mintLogByTx.has(txHash)) {
+          mintLogByTx.set(txHash, {
+          from: ZERO_ADDRESS as `0x${string}`,
+          to,
+          memo: null,
+          value: amount.toString(),
+          txHash: log.transactionHash as `0x${string}`,
+          logIndex: String(log.logIndex ?? 0n),
+          blockNumber: log.blockNumber ?? 0n,
+          })
+        }
+      }
+
+      if (boundedStart === 0n || boundedStart === minBlock) break
+      endBlock = boundedStart - 1n
+    }
+
+    const byTx = new Map<string, {
+      from: `0x${string}`
+      to: `0x${string}`
+      memo: `0x${string}` | null
+      value: string
+      txHash: `0x${string}`
+      logIndex: string
+      blockNumber: bigint
+    }>()
+
+    for (const [txHash, transferLog] of transferLogByTx.entries()) {
+      const memoLog = memoLogByTx.get(txHash)
+      byTx.set(txHash, {
+        ...transferLog,
+        memo: memoLog?.memo ?? transferLog.memo,
+      })
+    }
+
+    for (const [txHash, memoLog] of memoLogByTx.entries()) {
+      if (byTx.has(txHash)) {
+        const existing = byTx.get(txHash)
+        if (existing) {
+          const transferValue = BigInt(existing.value)
+          const memoValue = BigInt(memoLog.value)
+          if (transferValue < 10000n && memoValue >= 10000n) {
+            byTx.set(txHash, memoLog)
+          }
+        }
+        continue
+      }
+      byTx.set(txHash, memoLog)
+    }
+
+    for (const [txHash, mintLog] of mintLogByTx.entries()) {
+      if (!byTx.has(txHash)) {
+        byTx.set(txHash, mintLog)
+      }
+    }
+
+    const sortedTransfers = Array.from(byTx.values())
+      .sort((a, b) => Number(b.blockNumber - a.blockNumber))
+      .map(({ blockNumber, ...rest }) => rest)
+
+    res.json({ transfers: sortedTransfers })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to load transactions'
     res.status(500).json({ error: message })

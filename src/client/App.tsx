@@ -31,6 +31,7 @@ type TransferItem = {
   memo: string
   amount: string
   txHash: `0x${string}`
+  logIndex: string
 }
 
 type StoredAccessKey = {
@@ -47,7 +48,8 @@ export const autopayDebugRef: {
   current: null | ((enabled: boolean) => void)
 } = { current: null }
 
-function decodeInvoiceId(invoiceId: `0x${string}`) {
+function decodeInvoiceId(invoiceId?: `0x${string}` | null) {
+  if (!invoiceId || invoiceId === '0x') return ''
   return hexToString(invoiceId).replace(/\u0000/g, '')
 }
 
@@ -105,31 +107,6 @@ export function App() {
   const nextInvoiceNumberRef = React.useRef<bigint | null>(null)
   const [isAwaitingInvoice, setIsAwaitingInvoice] = React.useState(false)
   const [processingInvoices, setProcessingInvoices] = React.useState<Set<string>>(new Set())
-
-  const refreshBalanceAfterFaucet = React.useCallback(() => {
-    const startingBalance = balanceQuery.data ?? 0n
-    const maxAttempts = 20
-    const delayMs = 2000
-    let attempts = 0
-
-    if (balancePollRef.current) {
-      window.clearTimeout(balancePollRef.current)
-      balancePollRef.current = null
-    }
-
-    const poll = async () => {
-      attempts += 1
-      const result = await balanceQuery.refetch()
-      const nextBalance = result.data ?? startingBalance
-      if (nextBalance > startingBalance || attempts >= maxAttempts) {
-        balancePollRef.current = null
-        return
-      }
-      balancePollRef.current = window.setTimeout(poll, delayMs)
-    }
-
-    void poll()
-  }, [balanceQuery])
 
   React.useEffect(() => {
     return () => {
@@ -286,29 +263,70 @@ export function App() {
 
   const refreshTransactions = React.useCallback(async () => {
     if (!account.address) return
-    const response = await fetch(`/api/transactions?address=${account.address}`)
+    const response = await fetch(`/api/transactions?address=${account.address}&lookback=5000`)
     const data = await response.json()
     if (!response.ok) {
       throw new Error(data?.error ?? 'Failed to load transactions')
     }
-    const next = (data.transfers ?? []).map((tx: {
+    const next = (data.transfers ?? []).flatMap((tx: {
       from: `0x${string}`
       to: `0x${string}`
-      memo: `0x${string}`
+      memo: `0x${string}` | null
       value: string
       txHash: `0x${string}`
+      logIndex?: string
     }) => {
+      const rawValue = BigInt(tx.value)
       const isIncoming = tx.to?.toLowerCase() === account.address?.toLowerCase()
-      const amount = Number(formatUnits(BigInt(tx.value), 6)).toFixed(2)
-      return {
+      const amountValue = Number(formatUnits(rawValue, 6))
+      if (!Number.isFinite(amountValue) || amountValue <= 0) return []
+      const isFee = !isIncoming && amountValue < 0.01
+      if (amountValue < 0.01 && !isFee) return []
+      const amount = isFee
+        ? '<0.01'
+        : amountValue.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })
+      const memo = isFee ? 'Fees' : decodeInvoiceId(tx.memo)
+      return [{
         direction: isIncoming ? 'incoming' : 'outgoing',
-        memo: decodeInvoiceId(tx.memo),
+        memo: memo || (isIncoming ? 'Incoming payment' : 'Outgoing payment'),
         amount,
         txHash: tx.txHash,
-      }
+        logIndex: tx.logIndex ?? '0',
+      }]
     })
     setTransactions(next)
   }, [account.address])
+
+  const refreshBalanceAfterFaucet = React.useCallback(() => {
+    const startingBalance = balanceQuery.data ?? 0n
+    const maxAttempts = 20
+    const delayMs = 2000
+    let attempts = 0
+
+    if (balancePollRef.current) {
+      window.clearTimeout(balancePollRef.current)
+      balancePollRef.current = null
+    }
+
+    const poll = async () => {
+      attempts += 1
+      const result = await balanceQuery.refetch()
+      const nextBalance = result.data ?? startingBalance
+      if (nextBalance > startingBalance || attempts >= maxAttempts) {
+        if (nextBalance > startingBalance) {
+          refreshTransactions().catch(() => undefined)
+        }
+        balancePollRef.current = null
+        return
+      }
+      balancePollRef.current = window.setTimeout(poll, delayMs)
+    }
+
+    void poll()
+  }, [balanceQuery, refreshTransactions])
 
   const refreshMobileInvoices = React.useCallback(async () => {
     if (!account.address) return
@@ -327,7 +345,7 @@ export function App() {
   const refreshMerchantInvoices = React.useCallback(async () => {
     setIsRefreshingMerchant(true)
     try {
-      await fetch('/api/invoices/refresh-status')
+      await fetch('/api/invoices/refresh-status?lookback=5000')
     } finally {
       window.setTimeout(() => setIsRefreshingMerchant(false), 400)
     }
@@ -793,7 +811,7 @@ export function App() {
                     <div className="muted">No recent transfers.</div>
                   ) : (
                     transactions.map((tx) => (
-                      <div key={tx.txHash} className="transaction-row">
+                      <div key={`${tx.txHash}-${tx.logIndex}`} className="transaction-row">
                         <div className={`transaction-icon ${tx.direction}`}>
                           {tx.direction === 'incoming' ? (
                             <svg
